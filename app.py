@@ -697,7 +697,7 @@ try:
 except Exception:
     GEMINI_API_KEY = None
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.6-flash"
 
 AI_ADVISOR_PROMPT_TEMPLATE = """You are an AI Loan Advisor helping explain an ML model's loan eligibility prediction to a bank customer. The ML model — not you — made the actual eligibility decision. Your job is only to explain it and offer general suggestions.
 
@@ -1020,14 +1020,10 @@ if st.session_state.result is not None:
                         st.markdown(advice_text)
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                    except Exception as e:
+                    except Exception:
                         st.error(
                             "🤖 The AI Loan Advisor is temporarily unavailable. Please try again later."
                         )
-                        # TEMPORARY DIAGNOSTIC — remove once the issue is found.
-                        # This does NOT print your API key, only the SDK's error message.
-                        with st.expander("🔧 Debug details (temporary)"):
-                            st.code(f"{type(e).__name__}: {e}")
 
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
