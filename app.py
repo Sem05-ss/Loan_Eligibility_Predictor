@@ -70,7 +70,15 @@ st.markdown("""
 ================================ */
 
 .stApp {
-    background: linear-gradient(135deg, #06172E, #022C50, #0F4C81);
+    background: linear-gradient(135deg, #06172E, #022C50, #0F4C81, #022C50, #06172E);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 header[data-testid="stHeader"] {
@@ -83,6 +91,48 @@ header[data-testid="stHeader"] * {
 
 div[data-testid="stDecoration"] {
     display: none !important;
+}
+
+/* Entrance animations */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0px); }
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 0 0 rgba(88, 161, 211, 0.5); }
+    70% { box-shadow: 0 0 0 12px rgba(88, 161, 211, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(88, 161, 211, 0); }
+}
+
+h1 {
+    animation: fadeInDown 0.9s ease-out;
+    display: inline-block;
+}
+
+.tagline {
+    animation: fadeInUp 1s ease-out;
+}
+
+.auth-card {
+    animation: fadeInUp 0.8s ease-out;
+}
+
+/* Floating bank emoji inside the title */
+.bank-icon {
+    display: inline-block;
+    animation: float 3s ease-in-out infinite;
 }
 
 section[data-testid="stSidebar"] {
@@ -156,6 +206,7 @@ ul[data-baseweb="menu"] li[aria-selected="true"] span {
     padding: 0.6em 1.5em;
     transition: 0.3s;
     width: 100%;
+    animation: pulseGlow 2.5s infinite;
 }
 
 .stButton > button:hover {
@@ -212,7 +263,7 @@ ul[data-baseweb="menu"] li[aria-selected="true"] span {
 # =========================
 
 def auth_screen():
-    st.markdown("<h1 style='text-align:center;'>🏦 Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
     st.markdown("<div class='tagline'>Smart, fast & secure loan approval predictions</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
@@ -279,7 +330,7 @@ with st.sidebar:
 model = joblib.load("loan_model.pkl")
 model_columns = joblib.load("loan_model_columns.pkl")
 
-st.markdown("<h1 style='text-align:center;'>🏦 Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
 st.markdown("<div class='tagline'>Enter applicant details below to check loan eligibility instantly</div>", unsafe_allow_html=True)
 
 
