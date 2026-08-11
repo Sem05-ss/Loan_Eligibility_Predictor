@@ -4,6 +4,19 @@ import joblib
 import json
 import hashlib
 import os
+import random
+import string
+from io import BytesIO
+from datetime import date
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+)
 
 # =========================
 # AUTH CONFIG
@@ -343,6 +356,15 @@ st.markdown("<div class='tagline'>Enter applicant details below to check loan el
 
 st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
 
+# 👤 Applicant Name — for display / report purposes ONLY.
+# This value is NEVER sent to the ML model or included in input_data.
+applicant_name = st.text_input(
+    "👤 Applicant Name",
+    value="",
+    placeholder="Enter applicant's full name",
+    help="Used only to personalize the on-screen result and the PDF report."
+)
+
 gender = st.selectbox(
     "Gender",
     ["Female", "Male"]
@@ -422,6 +444,238 @@ property_area_value = {"Rural": 0, "Semiurban": 1, "Urban": 2}[property_area]
 
 
 # =========================
+# APPLICATION ID GENERATOR
+# =========================
+
+def generate_application_id():
+    """Auto-generates a unique Application ID, e.g. LP-2026-A7K92M."""
+    year = date.today().year
+    suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"LP-{year}-{suffix}"
+
+
+# =========================
+# PDF REPORT GENERATION (ReportLab Platypus)
+# =========================
+
+BANK_NAVY = colors.HexColor("#06172E")
+BANK_SLATE = colors.HexColor("#022C50")
+BANK_BLUE = colors.HexColor("#0F4C81")
+BANK_STEEL = colors.HexColor("#58A1D3")
+BANK_POWDER = colors.HexColor("#B3DEF8")
+STATUS_GREEN = colors.HexColor("#1e8449")
+STATUS_RED = colors.HexColor("#c0392b")
+
+
+def generate_loan_report_pdf(report_data):
+    """
+    Builds a professional banking-style PDF loan report using ReportLab
+    Platypus and returns it as an in-memory BytesIO buffer.
+
+    report_data keys expected:
+        application_id, applicant_name, report_date, is_eligible,
+        eligibility_score, score_is_probability,
+        gender, married, dependents, education, self_employed,
+        property_area, credit_history_label,
+        applicant_income, coapplicant_income, loan_amount, loan_amount_term
+    """
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        topMargin=16 * mm,
+        bottomMargin=20 * mm,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        title="Loan Eligibility Report",
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "ReportTitle", parent=styles["Title"],
+        fontSize=20, textColor=colors.white, alignment=TA_CENTER,
+        spaceAfter=2,
+    )
+    subtitle_style = ParagraphStyle(
+        "ReportSubtitle", parent=styles["Normal"],
+        fontSize=10, textColor=BANK_POWDER, alignment=TA_CENTER,
+        spaceAfter=0,
+    )
+    section_heading_style = ParagraphStyle(
+        "SectionHeading", parent=styles["Heading2"],
+        fontSize=12, textColor=colors.white, spaceBefore=14, spaceAfter=6,
+        backColor=BANK_BLUE, leftIndent=6, borderPadding=(6, 6, 6, 6),
+    )
+    normal_style = ParagraphStyle(
+        "ReportNormal", parent=styles["Normal"],
+        fontSize=10, textColor=BANK_SLATE, leading=14,
+    )
+    notice_style = ParagraphStyle(
+        "NoticeStyle", parent=styles["Normal"],
+        fontSize=8.5, textColor=colors.HexColor("#555555"), leading=12,
+    )
+
+    elements = []
+
+    # ---- Header banner ----
+    header_table = Table(
+        [[Paragraph("🏦 LOAN ELIGIBILITY REPORT", title_style)],
+         [Paragraph("Loan Eligibility Predictor &bull; Educational / Informational Report", subtitle_style)]],
+        colWidths=[doc.width],
+    )
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BANK_NAVY),
+        ("TOPPADDING", (0, 0), (-1, 0), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 14),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 14))
+
+    # ---- Application meta info ----
+    meta_table = Table(
+        [
+            ["Application ID:", report_data["application_id"]],
+            ["Applicant Name:", report_data["applicant_name"] or "-"],
+            ["Report Date:", report_data["report_date"]],
+        ],
+        colWidths=[45 * mm, doc.width - 45 * mm],
+    )
+    meta_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (-1, -1), BANK_SLATE),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(meta_table)
+
+    # ---- Loan assessment ----
+    elements.append(Paragraph("LOAN ASSESSMENT", section_heading_style))
+
+    if report_data["is_eligible"]:
+        result_text = "✅ LOAN ELIGIBLE"
+        result_color = STATUS_GREEN
+    else:
+        result_text = "❌ LOAN NOT ELIGIBLE"
+        result_color = STATUS_RED
+
+    result_style = ParagraphStyle(
+        "ResultStyle", parent=styles["Normal"],
+        fontSize=16, textColor=result_color, alignment=TA_CENTER,
+        spaceBefore=4, spaceAfter=4,
+    )
+    result_box = Table([[Paragraph(result_text, result_style)]], colWidths=[doc.width])
+    result_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F7FC")),
+        ("BOX", (0, 0), (-1, -1), 1, result_color),
+        ("TOPPADDING", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+    ]))
+    elements.append(result_box)
+    elements.append(Spacer(1, 4))
+
+    # Prediction confidence — ONLY if the model actually supports predict_proba().
+    if report_data["score_is_probability"]:
+        elements.append(Paragraph(
+            f"Model Confidence (Eligibility Score): <b>{report_data['eligibility_score']} / 100</b>",
+            normal_style
+        ))
+    else:
+        elements.append(Paragraph(
+            "Model Confidence: Not available (this model does not support probability output).",
+            normal_style
+        ))
+
+    # ---- Applicant details ----
+    elements.append(Paragraph("APPLICANT DETAILS", section_heading_style))
+    applicant_table = Table(
+        [
+            ["Gender", report_data["gender"]],
+            ["Marital Status", report_data["married"]],
+            ["Dependents", report_data["dependents"]],
+            ["Education", report_data["education"]],
+            ["Self Employed", report_data["self_employed"]],
+            ["Property Area", report_data["property_area"]],
+            ["Credit History", report_data["credit_history_label"]],
+        ],
+        colWidths=[60 * mm, doc.width - 60 * mm],
+    )
+    applicant_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), BANK_POWDER),
+        ("TEXTCOLOR", (0, 0), (-1, -1), BANK_SLATE),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+        ("GRID", (0, 0), (-1, -1), 0.5, BANK_STEEL),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(applicant_table)
+
+    # ---- Financial details ----
+    elements.append(Paragraph("FINANCIAL DETAILS", section_heading_style))
+    financial_table = Table(
+        [
+            ["Applicant Income", f"₹{report_data['applicant_income']:,}"],
+            ["Co-applicant Income", f"₹{report_data['coapplicant_income']:,.0f}"],
+            ["Loan Amount", f"₹{report_data['loan_amount']:,.0f}"],
+            ["Loan Amount Term", f"{report_data['loan_amount_term']} months"],
+        ],
+        colWidths=[60 * mm, doc.width - 60 * mm],
+    )
+    financial_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), BANK_POWDER),
+        ("TEXTCOLOR", (0, 0), (-1, -1), BANK_SLATE),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+        ("GRID", (0, 0), (-1, -1), 0.5, BANK_STEEL),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(financial_table)
+
+    # ---- Prediction summary ----
+    elements.append(Paragraph("PREDICTION SUMMARY", section_heading_style))
+    elements.append(Paragraph(
+        f"Based on the applicant and financial details provided, the trained ML model predicts: "
+        f"<b>{'Loan Eligible' if report_data['is_eligible'] else 'Loan Not Eligible'}</b>.",
+        normal_style
+    ))
+    if report_data["score_is_probability"]:
+        elements.append(Paragraph(
+            f"The model's predicted probability of eligibility corresponds to a score of "
+            f"<b>{report_data['eligibility_score']} / 100</b>.",
+            normal_style
+        ))
+    elements.append(Spacer(1, 10))
+
+    # ---- Important notice ----
+    elements.append(Paragraph("IMPORTANT NOTICE", section_heading_style))
+    elements.append(Paragraph(
+        "This report contains an ML-based loan eligibility prediction for educational/informational "
+        "purposes only. It does not represent final approval or rejection by any bank or financial "
+        "institution.",
+        notice_style
+    ))
+
+    def _footer(canvas, doc_):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(BANK_SLATE)
+        canvas.drawString(18 * mm, 12 * mm, "Loan Eligibility Predictor")
+        canvas.drawRightString(
+            A4[0] - 18 * mm, 12 * mm,
+            f"Application ID: {report_data['application_id']}"
+        )
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=_footer, onLaterPages=_footer)
+    buffer.seek(0)
+    return buffer
+
+
+# =========================
 # PREDICTION
 # =========================
 #
@@ -469,13 +723,23 @@ if predict_clicked:
         eligibility_score = 75 if prediction == 1 else 25
 
     # Persist everything needed to render the results (and to run the
-    # What-If Simulator) across future reruns.
+    # What-If Simulator / PDF report) across future reruns.
     st.session_state.result = {
         "prediction": int(prediction),
         "eligibility_score": eligibility_score,
         "score_is_probability": score_is_probability,
+        # Auto-generated on every new prediction (never typed by the user)
+        "application_id": generate_application_id(),
+        "applicant_name": applicant_name,
+        # Raw display values, snapshotted for the report
+        "gender": gender,
+        "married": married,
+        "dependents": dependents,
+        "education": education,
+        "self_employed": self_employed,
+        "property_area": property_area,
         # Baseline numeric/encoded values (used as the "current" side
-        # of the What-If Simulator comparison)
+        # of the What-If Simulator comparison, and in the report)
         "applicant_income": applicant_income,
         "coapplicant_income": coapplicant_income,
         "loan_amount": loan_amount,
@@ -554,6 +818,55 @@ if st.session_state.result is not None:
         "</div>",
         unsafe_allow_html=True
     )
+
+    # =========================
+    # APPLICATION ID + PROFESSIONAL LOAN REPORT
+    # =========================
+
+    st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
+
+    st.markdown(
+        f"<div class='auth-card' style='text-align:center; padding:1rem;'>"
+        f"<div style='font-weight:700; color:#B3DEF8;'>🆔 APPLICATION ID</div>"
+        f"<div style='font-size:1.3rem; font-weight:800; color:#ffffff; margin-top:0.3rem;'>"
+        f"{r['application_id']}</div>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    generate_report_clicked = st.button("📄 Generate Loan Report", key="generate_report_btn")
+
+    if generate_report_clicked:
+        report_data = {
+            "application_id": r["application_id"],
+            "applicant_name": r["applicant_name"],
+            "report_date": date.today().strftime("%d %B %Y"),
+            "is_eligible": prediction == 1,
+            "eligibility_score": eligibility_score,
+            "score_is_probability": score_is_probability,
+            "gender": r["gender"],
+            "married": r["married"],
+            "dependents": r["dependents"],
+            "education": r["education"],
+            "self_employed": r["self_employed"],
+            "property_area": r["property_area"],
+            "credit_history_label": "Good" if base_credit_history == 1.0 else "Not Available",
+            "applicant_income": base_applicant_income,
+            "coapplicant_income": base_coapplicant_income,
+            "loan_amount": base_loan_amount,
+            "loan_amount_term": base_loan_amount_term,
+        }
+
+        pdf_buffer = generate_loan_report_pdf(report_data)
+
+        st.success("✅ Report generated successfully.")
+        st.download_button(
+            label="⬇️ Download Loan Report (PDF)",
+            data=pdf_buffer,
+            file_name=f"{r['application_id']}_Loan_Report.pdf",
+            mime="application/pdf",
+            key="download_report_btn"
+        )
 
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
