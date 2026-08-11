@@ -340,6 +340,19 @@ st.markdown("<div class='tagline'>Enter applicant details below to check loan el
 # =========================
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("<div class='sidebar-caption'>🤖 AI Explanation Setup</div>", unsafe_allow_html=True)
+    manual_api_key = st.text_input(
+        "Anthropic API Key",
+        value="",
+        type="password",
+        placeholder="sk-ant-...",
+        help="Paste your Anthropic API key here to enable the AI explanation feature. It is only stored for this session."
+    )
+    if manual_api_key:
+        ANTHROPIC_API_KEY = manual_api_key
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 EXPLANATION_PROMPT_TEMPLATE = """You are an AI Loan Decision Explanation Assistant for a Loan Eligibility Prediction System.
@@ -618,7 +631,7 @@ if predict_clicked:
     st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
 
     if not ANTHROPIC_API_KEY:
-        st.info("Set the ANTHROPIC_API_KEY environment variable to enable the 🔍 AI explanation of this result.")
+        st.info("Paste your Anthropic API key in the sidebar (under '🤖 AI Explanation Setup') to enable the 🔍 AI explanation of this result.")
     else:
         if st.button("🔍 Explain My Result (AI)"):
             with st.spinner("Generating explanation..."):
