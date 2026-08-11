@@ -18,6 +18,15 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 )
 
+# Gemini (Google GenAI SDK). Guarded import so the rest of the app keeps
+# working even if the package isn't installed yet (e.g. before
+# requirements.txt has been redeployed).
+try:
+    from google import genai
+    GENAI_SDK_AVAILABLE = True
+except ImportError:
+    GENAI_SDK_AVAILABLE = False
+
 # =========================
 # AUTH CONFIG
 # =========================
@@ -678,6 +687,90 @@ def generate_loan_report_pdf(report_data):
 
 
 # =========================
+# AI LOAN ADVISOR (Gemini)
+# =========================
+# API key is read ONLY from Streamlit Secrets — never hardcoded, never
+# displayed or printed anywhere.
+
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    GEMINI_API_KEY = None
+
+GEMINI_MODEL = "gemini-2.5-flash"
+
+AI_ADVISOR_PROMPT_TEMPLATE = """You are an AI Loan Advisor helping explain an ML model's loan eligibility prediction to a bank customer. The ML model — not you — made the actual eligibility decision. Your job is only to explain it and offer general suggestions.
+
+Applicant Information:
+- Gender: {gender}
+- Married: {married}
+- Dependents: {dependents}
+- Education: {education}
+- Self Employed: {self_employed}
+- Applicant Income: ₹{applicant_income}
+- Coapplicant Income: ₹{coapplicant_income}
+- Loan Amount: ₹{loan_amount}
+- Loan Amount Term: {loan_amount_term} months
+- Credit History: {credit_history}
+- Property Area: {property_area}
+
+ML Model Prediction: {prediction_label}
+
+Rules you must follow strictly:
+- Never claim that one specific factor definitely caused the prediction. Use phrases like "may have influenced", "could affect", "may indicate".
+- Never invent applicant information that wasn't provided above.
+- Never guarantee loan approval or guarantee loan rejection.
+- Do not make discriminatory assumptions based on gender, marital status, or property area.
+- Do not present yourself as making the final loan decision — the ML model and the bank do that.
+- Keep the response professional, easy to understand, and avoid risky or misleading financial advice.
+
+Respond using EXACTLY this Markdown structure:
+
+### 🔍 Why did I get this result?
+(Explain in simple language why the ML model may have predicted this result.)
+
+### ✅ Positive Factors
+(List factors from the applicant's information that may support loan eligibility.)
+
+### ⚠️ Factors to Consider
+(List factors that may negatively affect or create uncertainty around the prediction.)
+
+### 💡 Suggestions
+(Give 2-4 practical, general suggestions that could potentially improve the applicant's financial profile.)
+
+### 📌 Important Notice
+This is an AI-generated explanation based on the provided information and an ML prediction. It is not a final loan approval or rejection by a bank."""
+
+
+def get_ai_loan_advice(applicant_details, prediction_label, api_key):
+    """Sends the applicant details + ML prediction to Gemini and returns
+    a plain-language explanation. The ML prediction itself is NOT
+    generated here — it is only explained."""
+
+    prompt = AI_ADVISOR_PROMPT_TEMPLATE.format(
+        gender=applicant_details["gender"],
+        married=applicant_details["married"],
+        dependents=applicant_details["dependents"],
+        education=applicant_details["education"],
+        self_employed=applicant_details["self_employed"],
+        applicant_income=applicant_details["applicant_income"],
+        coapplicant_income=applicant_details["coapplicant_income"],
+        loan_amount=applicant_details["loan_amount"],
+        loan_amount_term=applicant_details["loan_amount_term"],
+        credit_history=applicant_details["credit_history"],
+        property_area=applicant_details["property_area"],
+        prediction_label=prediction_label
+    )
+
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt
+    )
+    return response.text
+
+
+# =========================
 # PREDICTION
 # =========================
 #
@@ -873,6 +966,64 @@ if st.session_state.result is not None:
             mime="application/pdf",
             key="download_report_btn"
         )
+
+    # =========================
+    # AI LOAN ADVISOR
+    # =========================
+
+    st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
+
+    with st.expander("🤖 AI Loan Advisor", expanded=False):
+
+        st.markdown(
+            "<div class='sidebar-caption'>Get a plain-language explanation of the ML model's result, "
+            "along with general suggestions. The ML model made the eligibility decision — the AI only "
+            "explains it.</div>",
+            unsafe_allow_html=True
+        )
+
+        if not GENAI_SDK_AVAILABLE:
+            st.warning(
+                "⚠️ The AI Loan Advisor is temporarily unavailable: the `google-genai` package is not "
+                "installed. Add it to requirements.txt and redeploy."
+            )
+        elif not GEMINI_API_KEY:
+            st.warning(
+                "⚠️ The AI Loan Advisor is not configured. Add `GEMINI_API_KEY` to your Streamlit "
+                "Secrets to enable this feature."
+            )
+        else:
+            get_advice_clicked = st.button("🤖 Get AI Loan Advice", key="ai_advice_btn")
+
+            if get_advice_clicked:
+                with st.spinner("Generating AI explanation..."):
+                    try:
+                        applicant_details = {
+                            "gender": r["gender"],
+                            "married": r["married"],
+                            "dependents": r["dependents"],
+                            "education": r["education"],
+                            "self_employed": r["self_employed"],
+                            "applicant_income": base_applicant_income,
+                            "coapplicant_income": base_coapplicant_income,
+                            "loan_amount": base_loan_amount,
+                            "loan_amount_term": base_loan_amount_term,
+                            "credit_history": "Good" if base_credit_history == 1.0 else "Not Available",
+                            "property_area": r["property_area"],
+                        }
+                        prediction_label = "Loan Eligible" if prediction == 1 else "Loan Not Eligible"
+
+                        advice_text = get_ai_loan_advice(applicant_details, prediction_label, GEMINI_API_KEY)
+
+                        st.success("✅ AI explanation generated.")
+                        st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
+                        st.markdown(advice_text)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                    except Exception:
+                        st.error(
+                            "🤖 The AI Loan Advisor is temporarily unavailable. Please try again later."
+                        )
 
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
