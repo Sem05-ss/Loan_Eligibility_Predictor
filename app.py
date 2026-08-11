@@ -73,6 +73,18 @@ st.markdown("""
     background: linear-gradient(135deg, #06172E, #022C50, #0F4C81);
 }
 
+header[data-testid="stHeader"] {
+    background: #06172E !important;
+}
+
+header[data-testid="stHeader"] * {
+    color: #B3DEF8 !important;
+}
+
+div[data-testid="stDecoration"] {
+    display: none !important;
+}
+
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #06172E, #0F4C81);
     border-right: 1px solid #58A1D3;
@@ -111,23 +123,28 @@ ul[data-baseweb="menu"] {
     border: 1px solid #58A1D3 !important;
 }
 
-ul[data-baseweb="menu"] li {
+ul[data-baseweb="menu"] li,
+ul[data-baseweb="menu"] li div,
+ul[data-baseweb="menu"] li span {
     background-color: #ffffff !important;
     color: #06172E !important;
+    -webkit-text-fill-color: #06172E !important;
 }
 
-ul[data-baseweb="menu"] li:hover {
+ul[data-baseweb="menu"] li:hover,
+ul[data-baseweb="menu"] li:hover div,
+ul[data-baseweb="menu"] li:hover span {
     background-color: #B3DEF8 !important;
     color: #06172E !important;
+    -webkit-text-fill-color: #06172E !important;
 }
 
-ul[data-baseweb="menu"] li[aria-selected="true"] {
+ul[data-baseweb="menu"] li[aria-selected="true"],
+ul[data-baseweb="menu"] li[aria-selected="true"] div,
+ul[data-baseweb="menu"] li[aria-selected="true"] span {
     background-color: #58A1D3 !important;
     color: #ffffff !important;
-}
-
-ul[data-baseweb="menu"] li * {
-    color: inherit !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 
 .stButton > button {
