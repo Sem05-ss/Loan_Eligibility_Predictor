@@ -49,6 +49,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "result" not in st.session_state:
+    st.session_state.result = None
 
 st.set_page_config(
     page_title="Loan Eligibility Predictor",
@@ -321,6 +323,7 @@ with st.sidebar:
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.username = ""
+        st.session_state.result = None
         st.rerun()
 
 
@@ -338,21 +341,12 @@ st.markdown("<div class='tagline'>Enter applicant details below to check loan el
 # =========================
 # AI EXPLANATION ASSISTANT
 # =========================
+# NOTE: The Anthropic API key is read only from an environment variable.
+# There is no sidebar input for it — set ANTHROPIC_API_KEY on the server/host
+# running this app (e.g. in a .env file, Streamlit secrets, or your shell
+# environment) to enable the AI explanation feature.
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("<div class='sidebar-caption'>🤖 AI Explanation Setup</div>", unsafe_allow_html=True)
-    manual_api_key = st.text_input(
-        "Anthropic API Key",
-        value="",
-        type="password",
-        placeholder="sk-ant-...",
-        help="Paste your Anthropic API key here to enable the AI explanation feature. It is only stored for this session."
-    )
-    if manual_api_key:
-        ANTHROPIC_API_KEY = manual_api_key
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 EXPLANATION_PROMPT_TEMPLATE = """You are an AI Loan Decision Explanation Assistant for a Loan Eligibility Prediction System.
@@ -509,35 +503,37 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 
 # =========================
-# PREDICTION
+# ENCODING (always computed so it's available both for a fresh
+# prediction and for the What-If Simulator on every rerun)
 # =========================
 
+gender_value = 0 if gender == "Female" else 1
+married_value = 0 if married == "No" else 1
+dependents_value = {"0": 0, "1": 1, "2": 2, "3+": 3}[dependents]
+education_value = 0 if education == "Not graduate" else 1
+self_employed_value = 0 if self_employed == "No" else 1
+property_area_value = {"Rural": 0, "Semiurban": 1, "Urban": 2}[property_area]
+
+
+# =========================
+# PREDICTION
+# =========================
+#
+# IMPORTANT FIX: Streamlit reruns the entire script on every widget
+# interaction, and a st.button() only returns True on the exact run
+# where it was clicked. The original code nested the score card, the
+# What-If Simulator, and the AI explanation section entirely inside
+# `if predict_clicked:` — so the moment the user clicked "Simulate" (or
+# "Explain My Result"), that rerun made `predict_clicked` False again
+# and the WHOLE results section (including the simulator itself)
+# vanished before it could show anything.
+#
+# The fix: run the prediction once and persist its results in
+# st.session_state. Everything below (score card, simulator, AI
+# explanation) is rendered from session_state, so it survives reruns
+# triggered by any button inside it.
+
 if predict_clicked:
-
-    # Encoding inputs
-
-    gender_value = 0 if gender == "Female" else 1
-
-    married_value = 0 if married == "No" else 1
-
-    dependents_value = {
-        "0": 0,
-        "1": 1,
-        "2": 2,
-        "3+": 3
-    }[dependents]
-
-    education_value = 0 if education == "Not graduate" else 1
-
-    self_employed_value = 0 if self_employed == "No" else 1
-
-    property_area_value = {
-        "Rural": 0,
-        "Semiurban": 1,
-        "Urban": 2
-    }[property_area]
-
-    # Create input dataframe
 
     input_data = pd.DataFrame({
         "Gender": [gender_value],
@@ -553,16 +549,12 @@ if predict_clicked:
         "Property_Area": [property_area_value]
     })
 
-    # Make sure column order is same as training data
-
+    # Match column order to training data
     input_data = input_data[model_columns]
-
-    # Prediction
 
     prediction = model.predict(input_data)[0]
 
     # Eligibility Score (0-100)
-
     score_is_probability = True
     try:
         probability = model.predict_proba(input_data)[0][1]
@@ -570,6 +562,49 @@ if predict_clicked:
     except Exception:
         score_is_probability = False
         eligibility_score = 75 if prediction == 1 else 25
+
+    # Persist everything needed to render the results (and to run the
+    # What-If Simulator / AI explanation) across future reruns.
+    st.session_state.result = {
+        "prediction": int(prediction),
+        "eligibility_score": eligibility_score,
+        "score_is_probability": score_is_probability,
+        # Raw display values (for the AI explanation)
+        "gender": gender,
+        "married": married,
+        "dependents": dependents,
+        "education": education,
+        "self_employed": self_employed,
+        "property_area": property_area,
+        # Baseline numeric/encoded values (used as the "current" side
+        # of the What-If Simulator comparison)
+        "applicant_income": applicant_income,
+        "coapplicant_income": coapplicant_income,
+        "loan_amount": loan_amount,
+        "loan_amount_term": loan_amount_term,
+        "credit_history": credit_history,
+    }
+
+
+# =========================
+# RESULTS (rendered from session_state so they persist across reruns
+# caused by the Simulate / Explain buttons below)
+# =========================
+
+if st.session_state.result is not None:
+
+    r = st.session_state.result
+
+    prediction = r["prediction"]
+    eligibility_score = r["eligibility_score"]
+    score_is_probability = r["score_is_probability"]
+
+    # Baseline values captured at prediction time
+    base_applicant_income = r["applicant_income"]
+    base_coapplicant_income = r["coapplicant_income"]
+    base_loan_amount = r["loan_amount"]
+    base_loan_amount_term = r["loan_amount_term"]
+    base_credit_history = r["credit_history"]
 
     if eligibility_score >= 80:
         score_label = "🟢 Excellent"
@@ -587,7 +622,6 @@ if predict_clicked:
     score_title = "🎯 LOAN ELIGIBILITY SCORE" if score_is_probability else "🎯 MODEL-BASED ELIGIBILITY SCORE"
 
     # Result
-
     if prediction == 1:
         st.success("✅ Loan Eligible")
         st.write("Based on the provided information, the applicant is predicted to be eligible for the loan.")
@@ -596,7 +630,6 @@ if predict_clicked:
         st.write("Based on the provided information, the applicant is predicted to be not eligible for the loan.")
 
     # Score Card
-
     st.markdown(f"""
     <div class="auth-card" style="text-align:center; margin-top:1.2rem; border: 1px solid {score_color};">
         <div style="font-weight:700; letter-spacing:1px; color:#B3DEF8; margin-bottom:0.6rem;">
@@ -640,39 +673,41 @@ if predict_clicked:
 
         st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
 
+        loan_term_options = [12, 36, 60, 84, 120, 180, 240, 300, 360, 480]
+
         sim_col1, sim_col2 = st.columns(2)
 
         with sim_col1:
             sim_applicant_income = st.number_input(
                 "Simulated Applicant Income",
                 min_value=0,
-                value=int(applicant_income),
+                value=int(base_applicant_income),
                 key="sim_applicant_income"
             )
             sim_coapplicant_income = st.number_input(
                 "Simulated Coapplicant Income",
                 min_value=0.0,
-                value=float(coapplicant_income),
+                value=float(base_coapplicant_income),
                 key="sim_coapplicant_income"
             )
             sim_loan_amount = st.number_input(
                 "Simulated Loan Amount",
                 min_value=0.0,
-                value=float(loan_amount),
+                value=float(base_loan_amount),
                 key="sim_loan_amount"
             )
 
         with sim_col2:
             sim_loan_amount_term = st.selectbox(
                 "Simulated Loan Amount Term",
-                [12, 36, 60, 84, 120, 180, 240, 300, 360, 480],
-                index=[12, 36, 60, 84, 120, 180, 240, 300, 360, 480].index(loan_amount_term),
+                loan_term_options,
+                index=loan_term_options.index(base_loan_amount_term),
                 key="sim_loan_amount_term"
             )
             sim_credit_history = st.selectbox(
                 "Simulated Credit History",
                 [1.0, 0.0],
-                index=[1.0, 0.0].index(credit_history),
+                index=[1.0, 0.0].index(base_credit_history),
                 format_func=lambda x: "Good" if x == 1.0 else "Not Available",
                 key="sim_credit_history"
             )
@@ -683,9 +718,9 @@ if predict_clicked:
 
         if simulate_clicked:
 
-            # Build simulator input using modified values,
-            # keeping all other fields identical to the original application
-
+            # Build simulator input using modified values, keeping the
+            # non-editable fields (gender, married, etc.) the same as
+            # the current main form.
             simulator_data = pd.DataFrame({
                 "Gender": [gender_value],
                 "Married": [married_value],
@@ -710,7 +745,6 @@ if predict_clicked:
             simulated_label = "✅ Loan Eligible" if simulated_prediction == 1 else "❌ Loan Not Eligible"
 
             # Result comparison card
-
             st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
 
             result_col1, result_col2 = st.columns(2)
@@ -732,23 +766,22 @@ if predict_clicked:
             st.markdown("</div>", unsafe_allow_html=True)
 
             # Field-by-field comparison
-
             st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
             st.markdown("<div style='font-weight:700; color:#B3DEF8; margin-bottom:0.6rem;'>📊 What Changed</div>", unsafe_allow_html=True)
 
             c1, c2, c3, c4 = st.columns(4)
             with c1:
-                st.metric("Applicant Income", f"₹{sim_applicant_income}", delta=int(sim_applicant_income - applicant_income))
+                st.metric("Applicant Income", f"₹{sim_applicant_income}", delta=int(sim_applicant_income - base_applicant_income))
             with c2:
-                st.metric("Loan Amount", f"₹{sim_loan_amount}", delta=float(sim_loan_amount - loan_amount))
+                st.metric("Loan Amount", f"₹{sim_loan_amount}", delta=float(sim_loan_amount - base_loan_amount))
             with c3:
                 st.metric(
                     "Credit History",
                     "Good" if sim_credit_history == 1.0 else "Not Available",
-                    delta="Changed" if sim_credit_history != credit_history else "No change"
+                    delta="Changed" if sim_credit_history != base_credit_history else "No change"
                 )
             with c4:
-                st.metric("Loan Term", f"{sim_loan_amount_term} mo", delta=int(sim_loan_amount_term - loan_amount_term))
+                st.metric("Loan Term", f"{sim_loan_amount_term} mo", delta=int(sim_loan_amount_term - base_loan_amount_term))
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -768,24 +801,24 @@ if predict_clicked:
     st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
 
     if not ANTHROPIC_API_KEY:
-        st.info("Paste your Anthropic API key in the sidebar (under '🤖 AI Explanation Setup') to enable the 🔍 AI explanation of this result.")
+        st.info("Set the ANTHROPIC_API_KEY environment variable on the server to enable the 🔍 AI explanation of this result.")
     else:
         if st.button("🔍 Explain My Result (AI)"):
             with st.spinner("Generating explanation..."):
                 try:
                     prediction_label = "Loan Eligible" if prediction == 1 else "Loan Not Eligible"
                     applicant_details = {
-                        "gender": gender,
-                        "married": married,
-                        "dependents": dependents,
-                        "education": education,
-                        "self_employed": self_employed,
-                        "applicant_income": applicant_income,
-                        "coapplicant_income": coapplicant_income,
-                        "loan_amount": loan_amount,
-                        "loan_amount_term": loan_amount_term,
-                        "credit_history": "Good" if credit_history == 1.0 else "Not Available",
-                        "property_area": property_area
+                        "gender": r["gender"],
+                        "married": r["married"],
+                        "dependents": r["dependents"],
+                        "education": r["education"],
+                        "self_employed": r["self_employed"],
+                        "applicant_income": base_applicant_income,
+                        "coapplicant_income": base_coapplicant_income,
+                        "loan_amount": base_loan_amount,
+                        "loan_amount_term": base_loan_amount_term,
+                        "credit_history": "Good" if base_credit_history == 1.0 else "Not Available",
+                        "property_area": r["property_area"]
                     }
                     explanation_text = get_ai_explanation(applicant_details, prediction_label, ANTHROPIC_API_KEY)
                     st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
