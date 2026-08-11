@@ -61,38 +61,53 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+/* ===== Bank Color Palette =====
+   Powder Blue : #B3DEF8
+   Blue Gray   : #58A1D3
+   Classic Blue: #0F4C81
+   Blue Slate  : #022C50
+   Midnight    : #06172E
+================================ */
+
 .stApp {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(135deg, #06172E, #022C50, #0F4C81);
 }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #16222a, #3a6073);
+    background: linear-gradient(180deg, #06172E, #0F4C81);
+    border-right: 1px solid #58A1D3;
 }
 
 h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, span, div {
-    color: #f5f5f5;
+    color: #B3DEF8;
+}
+
+h1 {
+    color: #ffffff !important;
 }
 
 /* Fix invisible input fields */
 input, textarea {
-    color: #000000 !important;
+    color: #06172E !important;
     background-color: #ffffff !important;
     border-radius: 8px !important;
+    border: 1px solid #58A1D3 !important;
 }
 
 div[data-baseweb="select"] > div {
     background-color: #ffffff !important;
-    color: #000000 !important;
+    color: #06172E !important;
     border-radius: 8px !important;
+    border: 1px solid #58A1D3 !important;
 }
 
 div[data-baseweb="select"] span {
-    color: #000000 !important;
+    color: #06172E !important;
 }
 
 .stButton > button {
-    background: linear-gradient(90deg, #ff8008, #ffc837);
-    color: #000000 !important;
+    background: linear-gradient(90deg, #0F4C81, #58A1D3);
+    color: #ffffff !important;
     font-weight: 700;
     border: none;
     border-radius: 10px;
@@ -102,23 +117,26 @@ div[data-baseweb="select"] span {
 }
 
 .stButton > button:hover {
+    background: linear-gradient(90deg, #58A1D3, #B3DEF8);
+    color: #06172E !important;
     transform: scale(1.02);
-    box-shadow: 0px 0px 12px rgba(255,200,55,0.6);
+    box-shadow: 0px 0px 14px rgba(179,222,248,0.6);
 }
 
 .auth-card {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(179, 222, 248, 0.08);
     padding: 2rem;
     border-radius: 16px;
     backdrop-filter: blur(6px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    border: 1px solid rgba(88, 161, 211, 0.4);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
     margin-top: 1rem;
 }
 
 .tagline {
     text-align: center;
     font-size: 1.1rem;
-    color: #ffd479 !important;
+    color: #58A1D3 !important;
     margin-bottom: 1.5rem;
 }
 
@@ -128,7 +146,20 @@ div[data-baseweb="select"] span {
 }
 
 .sidebar-caption {
-    color: #cfd8dc !important;
+    color: #B3DEF8 !important;
+}
+
+.stSuccess {
+    background-color: rgba(88, 161, 211, 0.15) !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: #B3DEF8 !important;
+}
+
+.stTabs [aria-selected="true"] {
+    color: #ffffff !important;
+    border-bottom-color: #58A1D3 !important;
 }
 </style>
 """, unsafe_allow_html=True)
