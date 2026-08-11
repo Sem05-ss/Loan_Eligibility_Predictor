@@ -697,7 +697,13 @@ try:
 except Exception:
     GEMINI_API_KEY = None
 
-GEMINI_MODEL = "gemini-3.6-flash"
+# Try models in order — if the first ID isn't available for this API key
+# / project (404), fall back to the next one instead of failing outright.
+GEMINI_MODEL_CANDIDATES = [
+    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+]
 
 AI_ADVISOR_PROMPT_TEMPLATE = """You are an AI Loan Advisor helping explain an ML model's loan eligibility prediction to a bank customer. The ML model — not you — made the actual eligibility decision. Your job is only to explain it and offer general suggestions.
 
@@ -742,10 +748,32 @@ Respond using EXACTLY this Markdown structure:
 This is an AI-generated explanation based on the provided information and an ML prediction. It is not a final loan approval or rejection by a bank."""
 
 
+def _extract_text(response):
+    """Safely pull text out of a Gemini response. response.text can raise
+    or be empty if the model returned no candidates (e.g. blocked by a
+    safety filter or hit MAX_TOKENS with no output) — surface that as a
+    clear error instead of letting it fail silently or crash."""
+    text = getattr(response, "text", None)
+    if text:
+        return text
+
+    candidates = getattr(response, "candidates", None) or []
+    if candidates:
+        finish_reason = getattr(candidates[0], "finish_reason", "UNKNOWN")
+        raise RuntimeError(f"Gemini returned no text (finish_reason={finish_reason}).")
+
+    raise RuntimeError("Gemini returned an empty response with no candidates.")
+
+
 def get_ai_loan_advice(applicant_details, prediction_label, api_key):
     """Sends the applicant details + ML prediction to Gemini and returns
     a plain-language explanation. The ML prediction itself is NOT
-    generated here — it is only explained."""
+    generated here — it is only explained.
+
+    Tries each model in GEMINI_MODEL_CANDIDATES in order, falling back to
+    the next one only on a 404 (model not found/unsupported for this key).
+    Any other error (auth, quota, network, etc.) is raised immediately.
+    """
 
     prompt = AI_ADVISOR_PROMPT_TEMPLATE.format(
         gender=applicant_details["gender"],
@@ -763,11 +791,27 @@ def get_ai_loan_advice(applicant_details, prediction_label, api_key):
     )
 
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt
-    )
-    return response.text
+
+    last_error = None
+    for model_id in GEMINI_MODEL_CANDIDATES:
+        try:
+            response = client.models.generate_content(
+                model=model_id,
+                contents=prompt
+            )
+            return _extract_text(response)
+        except Exception as e:
+            last_error = e
+            # Only fall through to the next model on a "model not found /
+            # not supported" style error. Anything else (bad key, quota,
+            # network) should surface immediately.
+            error_text = str(e)
+            if "404" in error_text or "NOT_FOUND" in error_text:
+                continue
+            raise
+
+    # Every candidate model failed with a 404 — raise the last error.
+    raise last_error
 
 
 # =========================
@@ -1020,10 +1064,15 @@ if st.session_state.result is not None:
                         st.markdown(advice_text)
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                    except Exception:
+                    except Exception as e:
                         st.error(
                             "🤖 The AI Loan Advisor is temporarily unavailable. Please try again later."
                         )
+                        # Safe diagnostic — shows only the SDK's error type/message,
+                        # never the API key. Helpful while confirming this is fixed;
+                        # remove this expander once you've verified it works.
+                        with st.expander("🔧 Debug details"):
+                            st.code(f"{type(e).__name__}: {e}")
 
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
