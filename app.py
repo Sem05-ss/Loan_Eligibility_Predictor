@@ -4,7 +4,6 @@ import joblib
 import json
 import hashlib
 import os
-import requests
 
 # =========================
 # AUTH CONFIG
@@ -336,108 +335,6 @@ st.markdown("<div class='tagline'>Enter applicant details below to check loan el
 
 
 # =========================
-# AI EXPLANATION ASSISTANT
-# =========================
-
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("<div class='sidebar-caption'>🤖 AI Explanation Setup</div>", unsafe_allow_html=True)
-    manual_api_key = st.text_input(
-        "Anthropic API Key",
-        value="",
-        type="password",
-        placeholder="sk-ant-...",
-        help="Paste your Anthropic API key here to enable the AI explanation feature. It is only stored for this session."
-    )
-    if manual_api_key:
-        ANTHROPIC_API_KEY = manual_api_key
-ANTHROPIC_MODEL = "claude-sonnet-4-6"
-
-EXPLANATION_PROMPT_TEMPLATE = """You are an AI Loan Decision Explanation Assistant for a Loan Eligibility Prediction System.
-Your task is to explain clearly and simply why an applicant received their loan eligibility result.
-Applicant Details:
-- Gender: {gender}
-- Married: {married}
-- Dependents: {dependents}
-- Education: {education}
-- Self Employed: {self_employed}
-- Applicant Income: ₹{applicant_income}
-- Coapplicant Income: ₹{coapplicant_income}
-- Loan Amount: ₹{loan_amount}
-- Loan Amount Term: {loan_amount_term} months
-- Credit History: {credit_history}
-- Property Area: {property_area}
-Model Prediction:
-{prediction}
-Instructions:
-1. Explain the result in simple, professional language.
-2. Identify the 2–4 applicant factors that are most relevant to the prediction.
-3. Clearly mention positive factors that may support eligibility.
-4. Clearly mention factors that may negatively affect eligibility.
-5. If the result is "Loan Not Eligible", give 2–3 practical suggestions that could potentially improve the applicant's profile.
-6. If the result is "Loan Eligible", explain the factors that support the positive result.
-7. Do NOT claim that any single factor guarantees loan approval or rejection.
-8. Do NOT invent information that is not provided.
-9. Do NOT make discriminatory or unfair assumptions based on gender, marital status, or property location.
-10. Clearly state that this is an ML-based prediction and not an actual bank approval decision.
-11. Keep the response concise and easy for a normal banking customer to understand.
-Use this format:
-### 🔍 Why did you get this result?
-**Result:** [Loan Eligible / Loan Not Eligible]
-**Positive Factors:**
-- ...
-- ...
-**Factors That May Affect the Decision:**
-- ...
-- ...
-**💡 Suggestions:**
-- ...
-- ...
-**Important:** This is an AI/ML-based prediction for educational purposes and does not represent an actual bank's final lending decision."""
-
-
-def get_ai_explanation(details, prediction_label, api_key):
-    """Calls the Anthropic API to generate a plain-language explanation of the result."""
-
-    prompt = EXPLANATION_PROMPT_TEMPLATE.format(
-        gender=details["gender"],
-        married=details["married"],
-        dependents=details["dependents"],
-        education=details["education"],
-        self_employed=details["self_employed"],
-        applicant_income=details["applicant_income"],
-        coapplicant_income=details["coapplicant_income"],
-        loan_amount=details["loan_amount"],
-        loan_amount_term=details["loan_amount_term"],
-        credit_history=details["credit_history"],
-        property_area=details["property_area"],
-        prediction=prediction_label
-    )
-
-    response = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
-        json={
-            "model": ANTHROPIC_MODEL,
-            "max_tokens": 700,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
-        },
-        timeout=30
-    )
-    response.raise_for_status()
-    data = response.json()
-    return "".join(block.get("text", "") for block in data.get("content", []))
-
-
-# =========================
 # USER INPUTS
 # =========================
 
@@ -623,38 +520,3 @@ if predict_clicked:
         "</div>",
         unsafe_allow_html=True
     )
-
-    # =========================
-    # AI EXPLANATION SECTION
-    # =========================
-
-    st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
-
-    if not ANTHROPIC_API_KEY:
-        st.info("Paste your Anthropic API key in the sidebar (under '🤖 AI Explanation Setup') to enable the 🔍 AI explanation of this result.")
-    else:
-        if st.button("🔍 Explain My Result (AI)"):
-            with st.spinner("Generating explanation..."):
-                try:
-                    prediction_label = "Loan Eligible" if prediction == 1 else "Loan Not Eligible"
-                    applicant_details = {
-                        "gender": gender,
-                        "married": married,
-                        "dependents": dependents,
-                        "education": education,
-                        "self_employed": self_employed,
-                        "applicant_income": applicant_income,
-                        "coapplicant_income": coapplicant_income,
-                        "loan_amount": loan_amount,
-                        "loan_amount_term": loan_amount_term,
-                        "credit_history": "Good" if credit_history == 1.0 else "Not Available",
-                        "property_area": property_area
-                    }
-                    explanation_text = get_ai_explanation(applicant_details, prediction_label, ANTHROPIC_API_KEY)
-                    st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
-                    st.markdown(explanation_text)
-                    st.markdown("</div>", unsafe_allow_html=True)
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Could not generate explanation right now: {e}")
-                except Exception as e:
-                    st.error(f"Something went wrong while generating the explanation: {e}")
