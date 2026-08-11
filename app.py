@@ -105,6 +105,31 @@ div[data-baseweb="select"] span {
     color: #06172E !important;
 }
 
+/* Dropdown popover menu (the list that opens when you click a selectbox) */
+ul[data-baseweb="menu"] {
+    background-color: #ffffff !important;
+    border: 1px solid #58A1D3 !important;
+}
+
+ul[data-baseweb="menu"] li {
+    background-color: #ffffff !important;
+    color: #06172E !important;
+}
+
+ul[data-baseweb="menu"] li:hover {
+    background-color: #B3DEF8 !important;
+    color: #06172E !important;
+}
+
+ul[data-baseweb="menu"] li[aria-selected="true"] {
+    background-color: #58A1D3 !important;
+    color: #ffffff !important;
+}
+
+ul[data-baseweb="menu"] li * {
+    color: inherit !important;
+}
+
 .stButton > button {
     background: linear-gradient(90deg, #0F4C81, #58A1D3);
     color: #ffffff !important;
