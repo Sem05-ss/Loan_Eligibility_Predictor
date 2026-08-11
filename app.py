@@ -1020,10 +1020,14 @@ if st.session_state.result is not None:
                         st.markdown(advice_text)
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                    except Exception:
+                    except Exception as e:
                         st.error(
                             "🤖 The AI Loan Advisor is temporarily unavailable. Please try again later."
                         )
+                        # TEMPORARY DIAGNOSTIC — remove once the issue is found.
+                        # This does NOT print your API key, only the SDK's error message.
+                        with st.expander("🔧 Debug details (temporary)"):
+                            st.code(f"{type(e).__name__}: {e}")
 
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
