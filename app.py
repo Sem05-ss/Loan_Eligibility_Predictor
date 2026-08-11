@@ -556,6 +556,153 @@ if st.session_state.result is not None:
     )
 
     # =========================
+    # EMI + AFFORDABILITY CALCULATOR
+    # =========================
+
+    st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
+
+    with st.expander("💰 EMI + Affordability Calculator", expanded=False):
+
+        st.markdown(
+            "<div class='sidebar-caption'>Estimate the monthly installment for this loan and check "
+            "how comfortably it fits within the applicant's income.</div>",
+            unsafe_allow_html=True
+        )
+
+        st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
+
+        emi_col1, emi_col2 = st.columns(2)
+
+        with emi_col1:
+            emi_loan_amount = st.number_input(
+                "Loan Amount (₹)",
+                min_value=0.0,
+                value=float(base_loan_amount) * 1000.0 if base_loan_amount else 0.0,
+                step=1000.0,
+                key="emi_loan_amount",
+                help="Enter the loan principal in rupees."
+            )
+            emi_interest_rate = st.number_input(
+                "Interest Rate (% per annum)",
+                min_value=0.0,
+                max_value=50.0,
+                value=8.5,
+                step=0.1,
+                key="emi_interest_rate"
+            )
+
+        with emi_col2:
+            emi_tenure_years = st.number_input(
+                "Loan Tenure (Years)",
+                min_value=1,
+                max_value=40,
+                value=max(1, round(base_loan_amount_term / 12)) if base_loan_amount_term else 1,
+                step=1,
+                key="emi_tenure_years"
+            )
+            emi_monthly_income = st.number_input(
+                "Monthly Income (₹)",
+                min_value=0.0,
+                value=float(base_applicant_income) if base_applicant_income else 0.0,
+                step=500.0,
+                key="emi_monthly_income"
+            )
+
+        calculate_emi_clicked = st.button("💰 Calculate EMI", key="calculate_emi_btn")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if calculate_emi_clicked:
+
+            # ----- Standard EMI Formula -----
+            # EMI = [P x R x (1+R)^N] / [(1+R)^N - 1]
+            # P = Principal loan amount
+            # R = Monthly interest rate (annual rate / 12 / 100)
+            # N = Loan tenure in months
+
+            principal = emi_loan_amount
+            monthly_rate = emi_interest_rate / 12 / 100
+            tenure_months = int(emi_tenure_years * 12)
+
+            if principal <= 0 or tenure_months <= 0:
+                st.warning("⚠️ Please enter a valid loan amount and tenure to calculate EMI.")
+            else:
+                if monthly_rate == 0:
+                    # Zero-interest edge case: EMI is simply principal / tenure
+                    emi = principal / tenure_months
+                else:
+                    emi = (principal * monthly_rate * (1 + monthly_rate) ** tenure_months) / \
+                          ((1 + monthly_rate) ** tenure_months - 1)
+
+                total_payment = emi * tenure_months
+                total_interest = total_payment - principal
+
+                if emi_monthly_income > 0:
+                    emi_to_income_ratio = (emi / emi_monthly_income) * 100
+                else:
+                    emi_to_income_ratio = None
+
+                # Affordability status based on EMI-to-Income ratio
+                if emi_to_income_ratio is None:
+                    afford_label = "⚪ Enter monthly income to check affordability"
+                    afford_color = "#58A1D3"
+                elif emi_to_income_ratio <= 30:
+                    afford_label = "🟢 Affordable"
+                    afford_color = "#2ecc71"
+                elif emi_to_income_ratio <= 50:
+                    afford_label = "🟡 Moderate"
+                    afford_color = "#f1c40f"
+                else:
+                    afford_label = "🔴 High EMI Burden"
+                    afford_color = "#e74c3c"
+
+                # Results card
+                st.markdown("<div class='auth-card' style='margin-top:1rem;'>", unsafe_allow_html=True)
+                st.markdown(
+                    "<div style='font-weight:700; color:#B3DEF8; margin-bottom:0.6rem;'>📊 EMI Breakdown</div>",
+                    unsafe_allow_html=True
+                )
+
+                emi_res_col1, emi_res_col2, emi_res_col3 = st.columns(3)
+                with emi_res_col1:
+                    st.metric("Monthly EMI", f"₹{emi:,.2f}")
+                with emi_res_col2:
+                    st.metric("Total Interest", f"₹{total_interest:,.2f}")
+                with emi_res_col3:
+                    st.metric("Total Payment", f"₹{total_payment:,.2f}")
+
+                if emi_to_income_ratio is not None:
+                    st.markdown(
+                        f"<div style='margin-top:0.8rem; font-size:1rem; color:#B3DEF8;'>"
+                        f"EMI-to-Income Ratio: <span style='font-weight:700; color:#ffffff;'>"
+                        f"{emi_to_income_ratio:.1f}%</span></div>",
+                        unsafe_allow_html=True
+                    )
+                    st.progress(min(emi_to_income_ratio, 100) / 100)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                # Affordability status card
+                st.markdown(f"""
+                <div class="auth-card" style="text-align:center; margin-top:1rem; border: 1px solid {afford_color};">
+                    <div style="font-weight:700; letter-spacing:1px; color:#B3DEF8; margin-bottom:0.6rem;">
+                        AFFORDABILITY STATUS
+                    </div>
+                    <div style="font-size:1.4rem; font-weight:800; color:{afford_color};">
+                        {afford_label}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(
+                    "<div style='color:#B3DEF8; font-size:0.9rem; margin-top:0.7rem;'>"
+                    "This calculator uses the standard EMI formula for estimation purposes only. "
+                    "It does not account for processing fees, taxes, or bank-specific charges."
+                    "</div>",
+                    unsafe_allow_html=True
+                )
+
+    # =========================
     # WHAT-IF LOAN SIMULATOR
     # =========================
 
