@@ -458,6 +458,31 @@ if predict_clicked:
 
     prediction = model.predict(input_data)[0]
 
+    # Eligibility Score (0-100)
+
+    score_is_probability = True
+    try:
+        probability = model.predict_proba(input_data)[0][1]
+        eligibility_score = round(probability * 100)
+    except Exception:
+        score_is_probability = False
+        eligibility_score = 75 if prediction == 1 else 25
+
+    if eligibility_score >= 80:
+        score_label = "🟢 Excellent"
+        score_color = "#2ecc71"
+    elif eligibility_score >= 60:
+        score_label = "🟡 Good"
+        score_color = "#f1c40f"
+    elif eligibility_score >= 40:
+        score_label = "🟠 Moderate"
+        score_color = "#e67e22"
+    else:
+        score_label = "🔴 Low"
+        score_color = "#e74c3c"
+
+    score_title = "🎯 LOAN ELIGIBILITY SCORE" if score_is_probability else "🎯 MODEL-BASED ELIGIBILITY SCORE"
+
     # Result
 
     if prediction == 1:
@@ -466,3 +491,32 @@ if predict_clicked:
     else:
         st.error("❌ Loan Not Eligible")
         st.write("Based on the provided information, the applicant is predicted to be not eligible for the loan.")
+
+    # Score Card
+
+    st.markdown(f"""
+    <div class="auth-card" style="text-align:center; margin-top:1.2rem; border: 1px solid {score_color};">
+        <div style="font-weight:700; letter-spacing:1px; color:#B3DEF8; margin-bottom:0.6rem;">
+            {score_title}
+        </div>
+        <div style="font-size:2.4rem; font-weight:800; color:#ffffff;">
+            {eligibility_score}<span style="font-size:1.2rem; color:#58A1D3;"> / 100</span>
+        </div>
+        <div style="font-size:1.1rem; margin-top:0.4rem; color:{score_color}; font-weight:700;">
+            {score_label}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.progress(eligibility_score / 100)
+
+    if not score_is_probability:
+        st.caption("This model does not support probability output, so the score above is an estimated model-based indicator rather than a true prediction probability.")
+
+    st.markdown(
+        "<div style='color:#B3DEF8; font-size:0.9rem; margin-top:0.5rem;'>"
+        "This score represents the model's assessment based on the information provided. "
+        "It is not a guaranteed bank approval."
+        "</div>",
+        unsafe_allow_html=True
+    )
