@@ -65,8 +65,12 @@ st.markdown("""
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
 }
 
-h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {
-    color: #f5f5f5 !important;
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #16222a, #3a6073);
+}
+
+h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, span, div {
+    color: #f5f5f5;
 }
 
 /* Fix invisible input fields */
@@ -82,18 +86,23 @@ div[data-baseweb="select"] > div {
     border-radius: 8px !important;
 }
 
+div[data-baseweb="select"] span {
+    color: #000000 !important;
+}
+
 .stButton > button {
     background: linear-gradient(90deg, #ff8008, #ffc837);
-    color: #000000;
+    color: #000000 !important;
     font-weight: 700;
     border: none;
     border-radius: 10px;
     padding: 0.6em 1.5em;
     transition: 0.3s;
+    width: 100%;
 }
 
 .stButton > button:hover {
-    transform: scale(1.03);
+    transform: scale(1.02);
     box-shadow: 0px 0px 12px rgba(255,200,55,0.6);
 }
 
@@ -103,6 +112,7 @@ div[data-baseweb="select"] > div {
     border-radius: 16px;
     backdrop-filter: blur(6px);
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    margin-top: 1rem;
 }
 
 .tagline {
@@ -111,8 +121,19 @@ div[data-baseweb="select"] > div {
     color: #ffd479 !important;
     margin-bottom: 1.5rem;
 }
+
+.sidebar-username {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.sidebar-caption {
+    color: #cfd8dc !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
+
 # =========================
 # LOGIN / SIGNUP PAGE
 # =========================
@@ -162,18 +183,21 @@ def auth_screen():
 if not st.session_state.logged_in:
     auth_screen()
     st.stop()
-    # =========================
+
+
+# =========================
 # SIDEBAR - USER INFO / LOGOUT
 # =========================
 
 with st.sidebar:
-    st.markdown(f"### 👤 {st.session_state.username}")
-    st.caption("Welcome back!")
+    st.markdown(f"<div class='sidebar-username'>👤 {st.session_state.username}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sidebar-caption'>Welcome back!</div>", unsafe_allow_html=True)
     st.markdown("---")
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.rerun()
+
 
 # =========================
 # LOAD MODEL
@@ -185,4 +209,136 @@ model_columns = joblib.load("loan_model_columns.pkl")
 st.markdown("<h1 style='text-align:center;'>🏦 Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
 st.markdown("<div class='tagline'>Enter applicant details below to check loan eligibility instantly</div>", unsafe_allow_html=True)
 
-# ... rest of your existing code (USER INPUTS, PREDICTION section) stays unchanged below this point
+
+# =========================
+# USER INPUTS
+# =========================
+
+st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+
+gender = st.selectbox(
+    "Gender",
+    ["Female", "Male"]
+)
+
+married = st.selectbox(
+    "Married",
+    ["No", "Yes"]
+)
+
+dependents = st.selectbox(
+    "Dependents",
+    ["0", "1", "2", "3+"]
+)
+
+education = st.selectbox(
+    "Education",
+    ["Not graduate", "Graduate"]
+)
+
+self_employed = st.selectbox(
+    "Self Employed",
+    ["No", "Yes"]
+)
+
+applicant_income = st.number_input(
+    "Applicant Income",
+    min_value=0,
+    value=5000
+)
+
+coapplicant_income = st.number_input(
+    "Coapplicant Income",
+    min_value=0.0,
+    value=0.0
+)
+
+loan_amount = st.number_input(
+    "Loan Amount",
+    min_value=0.0,
+    value=150.0
+)
+
+loan_amount_term = st.selectbox(
+    "Loan Amount Term",
+    [12, 36, 60, 84, 120, 180, 240, 300, 360, 480],
+    index=8
+)
+
+credit_history = st.selectbox(
+    "Credit History",
+    [1.0, 0.0],
+    format_func=lambda x: "Good" if x == 1.0 else "Not Available"
+)
+
+property_area = st.selectbox(
+    "Property Area",
+    ["Rural", "Semiurban", "Urban"]
+)
+
+predict_clicked = st.button("Predict Loan Eligibility")
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+
+# =========================
+# PREDICTION
+# =========================
+
+if predict_clicked:
+
+    # Encoding inputs
+
+    gender_value = 0 if gender == "Female" else 1
+
+    married_value = 0 if married == "No" else 1
+
+    dependents_value = {
+        "0": 0,
+        "1": 1,
+        "2": 2,
+        "3+": 3
+    }[dependents]
+
+    education_value = 0 if education == "Not graduate" else 1
+
+    self_employed_value = 0 if self_employed == "No" else 1
+
+    property_area_value = {
+        "Rural": 0,
+        "Semiurban": 1,
+        "Urban": 2
+    }[property_area]
+
+    # Create input dataframe
+
+    input_data = pd.DataFrame({
+        "Gender": [gender_value],
+        "Married": [married_value],
+        "Dependents": [dependents_value],
+        "Education": [education_value],
+        "Self_Employed": [self_employed_value],
+        "ApplicantIncome": [applicant_income],
+        "CoapplicantIncome": [coapplicant_income],
+        "LoanAmount": [loan_amount],
+        "Loan_Amount_Term": [loan_amount_term],
+        "Credit_History": [credit_history],
+        "Property_Area": [property_area_value]
+    })
+
+    # Make sure column order is same as training data
+
+    input_data = input_data[model_columns]
+
+    # Prediction
+
+    prediction = model.predict(input_data)[0]
+
+    # Result
+
+    if prediction == 1:
+        st.success("✅ Loan Eligible")
+        st.write("Based on the provided information, the applicant is predicted to be eligible for the loan.")
+    else:
+        st.error("❌ Loan Not Eligible")
+        st.write("Based on the provided information, the applicant is predicted to be not eligible for the loan.")
