@@ -443,15 +443,23 @@ if "history" not in st.session_state:
 # SIDEBAR - BANKING-STYLE NAVIGATION
 # =========================
 
-NAV_ITEMS = [
+NAV_ITEMS_BEFORE_APPLICATION = [
     "🏠 Dashboard",
     "📝 New Loan Application",
+]
+
+NAV_ITEMS_AFTER_APPLICATION = [
     "💰 EMI Calculator",
     "🔄 What-If Simulator",
     "🤖 AI Loan Advisor",
     "📄 Loan Report",
     "📋 Application History",
 ]
+
+if st.session_state.result is not None:
+    NAV_ITEMS = NAV_ITEMS_BEFORE_APPLICATION + NAV_ITEMS_AFTER_APPLICATION
+else:
+    NAV_ITEMS = NAV_ITEMS_BEFORE_APPLICATION
 
 with st.sidebar:
     st.markdown(
