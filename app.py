@@ -74,10 +74,6 @@ if "result" not in st.session_state:
     st.session_state.result = None
 if "application_id" not in st.session_state:
     st.session_state.application_id = None
-if "page" not in st.session_state:
-    st.session_state.page = "🏠 Dashboard"
-if "history" not in st.session_state:
-    st.session_state.history = []
 
 st.set_page_config(
     page_title="Loan Eligibility Predictor",
@@ -288,6 +284,99 @@ ul[data-baseweb="menu"] li[aria-selected="true"] span {
 """, unsafe_allow_html=True)
 
 
+st.markdown("""
+<style>
+/* ===== Sidebar navigation (banking-style) ===== */
+.sb-brand {
+    display:flex; align-items:center; gap:0.6rem;
+    margin-bottom: 0.9rem;
+}
+.sb-brand-icon {
+    width:38px; height:38px; border-radius:10px;
+    background: linear-gradient(135deg,#0F4C81,#58A1D3);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.3rem;
+    box-shadow: 0 4px 14px rgba(15,76,129,0.5);
+}
+.sb-brand-title {
+    font-size:1.1rem; font-weight:800; color:#ffffff !important; letter-spacing:0.3px;
+}
+.sb-divider {
+    border:none; height:1px;
+    background: linear-gradient(90deg, transparent, #58A1D3, transparent);
+    margin: 0.8rem 0;
+}
+.sb-section-label {
+    font-size:0.7rem; font-weight:700; letter-spacing:1.4px;
+    color:#58A1D3 !important; text-transform:uppercase; margin: 0 0 0.4rem 0.1rem;
+}
+.sb-profile-card {
+    background: rgba(179,222,248,0.06);
+    border: 1px solid rgba(88,161,211,0.35);
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    display:flex; align-items:center; gap:0.65rem;
+    margin-bottom:0.2rem;
+}
+.sb-avatar {
+    width:38px; height:38px; min-width:38px; border-radius:50%;
+    background: linear-gradient(135deg,#58A1D3,#0F4C81);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff !important; font-weight:800; font-size:1rem;
+}
+.sb-profile-name { color:#fff !important; font-weight:700; font-size:0.92rem; line-height:1.2; }
+.sb-profile-meta { color:#B3DEF8 !important; font-size:0.75rem; margin-top:2px; }
+.sb-status-badge {
+    display:inline-block; font-size:0.72rem; font-weight:700;
+    padding:2px 9px; border-radius:20px; margin-top:4px;
+}
+.sb-status-eligible { background: rgba(46,204,113,0.18); color:#2ecc71 !important; }
+.sb-status-not-eligible { background: rgba(231,76,60,0.18); color:#e74c3c !important; }
+.sb-status-pending { background: rgba(88,161,211,0.18); color:#58A1D3 !important; }
+
+/* Turn the sidebar radio group into compact nav pills */
+section[data-testid="stSidebar"] div[role="radiogroup"] {
+    gap: 2px;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: transparent;
+    border-radius: 9px;
+    padding: 0.48rem 0.65rem;
+    margin: 1px 0;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    width: 100%;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(88,161,211,0.14);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
+    display:none !important;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
+    font-size:0.9rem; color:#B3DEF8 !important; font-weight:500; margin:0;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+    background: linear-gradient(90deg, #0F4C81, #58A1D3);
+    box-shadow: 0 3px 10px rgba(15,76,129,0.45);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p {
+    color:#ffffff !important; font-weight:700;
+}
+
+/* Compact Settings expander + Logout button in the sidebar */
+section[data-testid="stSidebar"] div[data-testid="stExpander"] {
+    border: 1px solid rgba(88,161,211,0.35) !important;
+    border-radius: 10px !important;
+    background: rgba(179,222,248,0.04) !important;
+}
+section[data-testid="stSidebar"] .stButton > button {
+    margin-top: 0.6rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # =========================
 # LOGIN / SIGNUP PAGE
 # =========================
@@ -339,8 +428,19 @@ if not st.session_state.logged_in:
     st.stop()
 
 
+
+
 # =========================
-# SIDEBAR - USER INFO / LOGOUT
+# SESSION STATE - NAVIGATION
+# =========================
+
+if "page" not in st.session_state:
+    st.session_state.page = "🏠 Dashboard"
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+# =========================
+# SIDEBAR - BANKING-STYLE NAVIGATION
 # =========================
 
 NAV_ITEMS = [
@@ -353,47 +453,16 @@ NAV_ITEMS = [
     "📋 Application History",
 ]
 
-# Sections that live inside the main workspace (form → results → tools).
-# Selecting any of these just routes the user into that workspace with the
-# matching tool auto-expanded — none of the existing ML/report logic below
-# is touched.
-WORKSPACE_PAGES = {
-    "📝 New Loan Application",
-    "💰 EMI Calculator",
-    "🔄 What-If Simulator",
-    "🤖 AI Loan Advisor",
-    "📄 Loan Report",
-}
-
 with st.sidebar:
-    st.markdown("<div style='font-size:1.3rem; font-weight:800; color:#ffffff;'>🏦 LOAN PREDICTOR</div>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin:0.5rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
-
-    # ---- Profile ----
-    _last = st.session_state.result
-    _profile_name = _last["applicant_name"] if _last and _last.get("applicant_name") else st.session_state.username
-    _app_id = st.session_state.application_id or "—"
-    if _last is None:
-        _status = "⚪ Not Submitted"
-    elif _last["prediction"] == 1:
-        _status = "🟢 Eligible"
-    else:
-        _status = "🔴 Not Eligible"
-
-    st.markdown("<div style='font-weight:700; color:#B3DEF8;'>👤 Profile</div>", unsafe_allow_html=True)
     st.markdown(
-        f"<div class='sidebar-caption' style='margin:0.2rem 0 0.1rem 0;'>Applicant Name<br>"
-        f"<span class='sidebar-username'>{_profile_name or 'Guest'}</span></div>"
-        f"<div class='sidebar-caption' style='margin:0.5rem 0 0.1rem 0;'>Application ID<br>"
-        f"<span class='sidebar-username'>{_app_id}</span></div>"
-        f"<div class='sidebar-caption' style='margin:0.5rem 0 0.1rem 0;'>Current Loan Status<br>"
-        f"<span class='sidebar-username'>{_status}</span></div>",
+        "<div class='sb-brand'>"
+        "<div class='sb-brand-icon'>🏦</div>"
+        "<div class='sb-brand-title'>LOAN PREDICTOR</div>"
+        "</div>",
         unsafe_allow_html=True
     )
 
-    st.markdown("<hr style='margin:0.8rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
-
-    # ---- Navigation ----
+    st.markdown("<div class='sb-section-label'>Navigate</div>", unsafe_allow_html=True)
     st.session_state.page = st.radio(
         "Navigate",
         NAV_ITEMS,
@@ -403,9 +472,34 @@ with st.sidebar:
     )
     page = st.session_state.page
 
-    st.markdown("<hr style='margin:0.8rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
+    st.markdown("<hr class='sb-divider'>", unsafe_allow_html=True)
 
-    # ---- Settings / Logout ----
+    _last = st.session_state.result
+    _profile_name = (_last["applicant_name"] if _last and _last.get("applicant_name") else st.session_state.username) or "Guest"
+    _app_id = st.session_state.application_id or "—"
+    _initial = _profile_name[0].upper() if _profile_name else "U"
+    if _last is None:
+        _status_html = "<span class='sb-status-badge sb-status-pending'>⚪ Not Submitted</span>"
+    elif _last["prediction"] == 1:
+        _status_html = "<span class='sb-status-badge sb-status-eligible'>🟢 Eligible</span>"
+    else:
+        _status_html = "<span class='sb-status-badge sb-status-not-eligible'>🔴 Not Eligible</span>"
+
+    st.markdown("<div class='sb-section-label'>Profile</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='sb-profile-card'>"
+        f"<div class='sb-avatar'>{_initial}</div>"
+        f"<div>"
+        f"<div class='sb-profile-name'>{_profile_name}</div>"
+        f"<div class='sb-profile-meta'>ID: {_app_id}</div>"
+        f"<div>{_status_html}</div>"
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<hr class='sb-divider'>", unsafe_allow_html=True)
+
     with st.expander("⚙️ Settings", expanded=False):
         st.markdown(f"<div class='sidebar-caption'>Logged in as <b>{st.session_state.username}</b></div>", unsafe_allow_html=True)
         st.caption("Account, password and notification settings will appear here in a future update.")
@@ -419,156 +513,11 @@ with st.sidebar:
         st.rerun()
 
 # =========================
-# DASHBOARD (self-contained overview page)
-# =========================
-
-if page == "🏠 Dashboard":
-    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown(f"<div class='tagline'>Welcome back, {st.session_state.username} 👋</div>", unsafe_allow_html=True)
-
-    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
-    if st.session_state.result is None:
-        st.markdown("<div class='sidebar-caption'>You haven't submitted a loan application yet.</div>", unsafe_allow_html=True)
-        if st.button("📝 Start New Loan Application"):
-            st.session_state.page = "📝 New Loan Application"
-            st.rerun()
-    else:
-        r = st.session_state.result
-        label = "✅ Loan Eligible" if r["prediction"] == 1 else "❌ Loan Not Eligible"
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Latest Status", label)
-        with col2:
-            st.metric("Eligibility Score", f"{r['eligibility_score']}/100")
-        with col3:
-            st.metric("Applications Made", len(st.session_state.history))
-        st.markdown(f"<div class='sidebar-caption' style='margin-top:0.6rem;'>Application ID: <b>{st.session_state.application_id}</b></div>", unsafe_allow_html=True)
-        if st.button("🔄 Start Another Application"):
-            st.session_state.page = "📝 New Loan Application"
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.stop()
-
-# =========================
-# APPLICATION HISTORY (self-contained page)
-# =========================
-
-if page == "📋 Application History":
-    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Application History</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='tagline'>All loan applications submitted this session</div>", unsafe_allow_html=True)
-
-    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
-    if not st.session_state.history:
-        st.markdown("<div class='sidebar-caption'>No applications submitted yet in this session.</div>", unsafe_allow_html=True)
-    else:
-        history_df = pd.DataFrame(st.session_state.history)
-        st.dataframe(history_df, use_container_width=True, hide_index=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.stop()
-
-
-# =========================
 # LOAD MODEL
 # =========================
 
 model = joblib.load("loan_model.pkl")
 model_columns = joblib.load("loan_model_columns.pkl")
-
-st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Loan Eligibility Predictor</h1>", unsafe_allow_html=True)
-st.markdown("<div class='tagline'>Enter applicant details below to check loan eligibility instantly</div>", unsafe_allow_html=True)
-
-
-# =========================
-# USER INPUTS
-# =========================
-
-st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
-
-# 👤 Applicant Name — for display / report purposes ONLY.
-# This value is NEVER sent to the ML model or included in input_data.
-applicant_name = st.text_input(
-    "👤 Applicant Name",
-    value="",
-    placeholder="Enter applicant's full name",
-    help="Used only to personalize the on-screen result and the PDF report."
-)
-
-gender = st.selectbox(
-    "Gender",
-    ["Female", "Male"]
-)
-
-married = st.selectbox(
-    "Married",
-    ["No", "Yes"]
-)
-
-dependents = st.selectbox(
-    "Dependents",
-    ["0", "1", "2", "3+"]
-)
-
-education = st.selectbox(
-    "Education",
-    ["Not graduate", "Graduate"]
-)
-
-self_employed = st.selectbox(
-    "Self Employed",
-    ["No", "Yes"]
-)
-
-applicant_income = st.number_input(
-    "Applicant Income",
-    min_value=0,
-    value=5000
-)
-
-coapplicant_income = st.number_input(
-    "Coapplicant Income",
-    min_value=0.0,
-    value=0.0
-)
-
-loan_amount = st.number_input(
-    "Loan Amount",
-    min_value=0.0,
-    value=150.0
-)
-
-loan_amount_term = st.selectbox(
-    "Loan Amount Term",
-    [12, 36, 60, 84, 120, 180, 240, 300, 360, 480],
-    index=8
-)
-
-credit_history = st.selectbox(
-    "Credit History",
-    [1.0, 0.0],
-    format_func=lambda x: "Good" if x == 1.0 else "Not Available"
-)
-
-property_area = st.selectbox(
-    "Property Area",
-    ["Rural", "Semiurban", "Urban"]
-)
-
-predict_clicked = st.button("Predict Loan Eligibility")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# =========================
-# ENCODING (always computed so it's available both for a fresh
-# prediction and for the What-If Simulator on every rerun)
-# =========================
-
-gender_value = 0 if gender == "Female" else 1
-married_value = 0 if married == "No" else 1
-dependents_value = {"0": 0, "1": 1, "2": 2, "3+": 3}[dependents]
-education_value = 0 if education == "Not graduate" else 1
-self_employed_value = 0 if self_employed == "No" else 1
-property_area_value = {"Rural": 0, "Semiurban": 1, "Urban": 2}[property_area]
 
 
 # =========================
@@ -580,7 +529,6 @@ def generate_application_id():
     year = date.today().year
     suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"LP-{year}-{suffix}"
-
 
 # =========================
 # PDF REPORT GENERATION (ReportLab Platypus)
@@ -931,81 +879,203 @@ def get_ai_loan_advice(applicant_details, prediction_label, api_key):
     raise last_error
 
 
-# =========================
-# PREDICTION
-# =========================
-#
-# IMPORTANT FIX: Streamlit reruns the entire script on every widget
-# interaction, and a st.button() only returns True on the exact run
-# where it was clicked. The original code nested the score card, the
-# What-If Simulator entirely inside `if predict_clicked:` — so the
-# moment the user clicked "Simulate", that rerun made `predict_clicked`
-# False again and the WHOLE results section (including the simulator
-# itself) vanished before it could show anything.
-#
-# The fix: run the prediction once and persist its results in
-# st.session_state. Everything below (score card, simulator) is
-# rendered from session_state, so it survives reruns triggered by any
-# button inside it.
 
-if predict_clicked:
+if page == "🏠 Dashboard":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown(f"<div class='tagline'>Welcome back, {st.session_state.username} 👋</div>", unsafe_allow_html=True)
+    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+    if st.session_state.result is None:
+        st.markdown("<div class='sidebar-caption'>You haven't submitted a loan application yet.</div>", unsafe_allow_html=True)
+        if st.button("📝 Start New Loan Application"):
+            st.session_state.page = "📝 New Loan Application"
+            st.rerun()
+    else:
+        _r = st.session_state.result
+        _label = "✅ Loan Eligible" if _r["prediction"] == 1 else "❌ Loan Not Eligible"
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Latest Status", _label)
+        with col2:
+            st.metric("Eligibility Score", f"{_r['eligibility_score']}/100")
+        with col3:
+            st.metric("Applications Made", len(st.session_state.history))
+        st.markdown(f"<div class='sidebar-caption' style='margin-top:0.6rem;'>Application ID: <b>{st.session_state.application_id}</b></div>", unsafe_allow_html=True)
+        if st.button("🔄 Start Another Application"):
+            st.session_state.page = "📝 New Loan Application"
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
 
-    input_data = pd.DataFrame({
-        "Gender": [gender_value],
-        "Married": [married_value],
-        "Dependents": [dependents_value],
-        "Education": [education_value],
-        "Self_Employed": [self_employed_value],
-        "ApplicantIncome": [applicant_income],
-        "CoapplicantIncome": [coapplicant_income],
-        "LoanAmount": [loan_amount],
-        "Loan_Amount_Term": [loan_amount_term],
-        "Credit_History": [credit_history],
-        "Property_Area": [property_area_value]
-    })
+if page == "📝 New Loan Application":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> New Loan Application</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>Enter applicant details below to check loan eligibility instantly</div>", unsafe_allow_html=True)
 
-    # Match column order to training data
-    input_data = input_data[model_columns]
+    # =========================
+    # USER INPUTS
+    # =========================
 
-    prediction = model.predict(input_data)[0]
+    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
 
-    # Eligibility Score (0-100)
-    score_is_probability = True
-    try:
-        probability = model.predict_proba(input_data)[0][1]
-        eligibility_score = round(probability * 100)
-    except Exception:
-        score_is_probability = False
-        eligibility_score = 75 if prediction == 1 else 25
+    # 👤 Applicant Name — for display / report purposes ONLY.
+    # This value is NEVER sent to the ML model or included in input_data.
+    applicant_name = st.text_input(
+        "👤 Applicant Name",
+        value="",
+        placeholder="Enter applicant's full name",
+        help="Used only to personalize the on-screen result and the PDF report."
+    )
 
-    # ---- Application ID: generated ONLY here, on a NEW prediction.
-    # Stored in its own st.session_state slot (not inside result, and
-    # never regenerated by the PDF button) so repeated PDF downloads
-    # for the same prediction always carry the same ID.
-    st.session_state.application_id = generate_application_id()
+    gender = st.selectbox(
+        "Gender",
+        ["Female", "Male"]
+    )
 
-    # Persist everything needed to render the results (and to run the
-    # What-If Simulator / PDF report) across future reruns.
-    st.session_state.result = {
-        "prediction": int(prediction),
-        "eligibility_score": eligibility_score,
-        "score_is_probability": score_is_probability,
-        "applicant_name": applicant_name,
-        # Raw display values, snapshotted for the report
-        "gender": gender,
-        "married": married,
-        "dependents": dependents,
-        "education": education,
-        "self_employed": self_employed,
-        "property_area": property_area,
-        # Baseline numeric/encoded values (used as the "current" side
-        # of the What-If Simulator comparison, and in the report)
-        "applicant_income": applicant_income,
-        "coapplicant_income": coapplicant_income,
-        "loan_amount": loan_amount,
-        "loan_amount_term": loan_amount_term,
-        "credit_history": credit_history,
-    }
+    married = st.selectbox(
+        "Married",
+        ["No", "Yes"]
+    )
+
+    dependents = st.selectbox(
+        "Dependents",
+        ["0", "1", "2", "3+"]
+    )
+
+    education = st.selectbox(
+        "Education",
+        ["Not graduate", "Graduate"]
+    )
+
+    self_employed = st.selectbox(
+        "Self Employed",
+        ["No", "Yes"]
+    )
+
+    applicant_income = st.number_input(
+        "Applicant Income",
+        min_value=0,
+        value=5000
+    )
+
+    coapplicant_income = st.number_input(
+        "Coapplicant Income",
+        min_value=0.0,
+        value=0.0
+    )
+
+    loan_amount = st.number_input(
+        "Loan Amount",
+        min_value=0.0,
+        value=150.0
+    )
+
+    loan_amount_term = st.selectbox(
+        "Loan Amount Term",
+        [12, 36, 60, 84, 120, 180, 240, 300, 360, 480],
+        index=8
+    )
+
+    credit_history = st.selectbox(
+        "Credit History",
+        [1.0, 0.0],
+        format_func=lambda x: "Good" if x == 1.0 else "Not Available"
+    )
+
+    property_area = st.selectbox(
+        "Property Area",
+        ["Rural", "Semiurban", "Urban"]
+    )
+
+    predict_clicked = st.button("Predict Loan Eligibility")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # =========================
+    # ENCODING (always computed so it's available both for a fresh
+    # prediction and for the What-If Simulator on every rerun)
+    # =========================
+
+    gender_value = 0 if gender == "Female" else 1
+    married_value = 0 if married == "No" else 1
+    dependents_value = {"0": 0, "1": 1, "2": 2, "3+": 3}[dependents]
+    education_value = 0 if education == "Not graduate" else 1
+    self_employed_value = 0 if self_employed == "No" else 1
+    property_area_value = {"Rural": 0, "Semiurban": 1, "Urban": 2}[property_area]
+
+    # =========================
+    # PREDICTION
+    # =========================
+    #
+    # IMPORTANT FIX: Streamlit reruns the entire script on every widget
+    # interaction, and a st.button() only returns True on the exact run
+    # where it was clicked. The original code nested the score card, the
+    # What-If Simulator entirely inside `if predict_clicked:` — so the
+    # moment the user clicked "Simulate", that rerun made `predict_clicked`
+    # False again and the WHOLE results section (including the simulator
+    # itself) vanished before it could show anything.
+    #
+    # The fix: run the prediction once and persist its results in
+    # st.session_state. Everything below (score card, simulator) is
+    # rendered from session_state, so it survives reruns triggered by any
+    # button inside it.
+
+    if predict_clicked:
+
+        input_data = pd.DataFrame({
+            "Gender": [gender_value],
+            "Married": [married_value],
+            "Dependents": [dependents_value],
+            "Education": [education_value],
+            "Self_Employed": [self_employed_value],
+            "ApplicantIncome": [applicant_income],
+            "CoapplicantIncome": [coapplicant_income],
+            "LoanAmount": [loan_amount],
+            "Loan_Amount_Term": [loan_amount_term],
+            "Credit_History": [credit_history],
+            "Property_Area": [property_area_value]
+        })
+
+        # Match column order to training data
+        input_data = input_data[model_columns]
+
+        prediction = model.predict(input_data)[0]
+
+        # Eligibility Score (0-100)
+        score_is_probability = True
+        try:
+            probability = model.predict_proba(input_data)[0][1]
+            eligibility_score = round(probability * 100)
+        except Exception:
+            score_is_probability = False
+            eligibility_score = 75 if prediction == 1 else 25
+
+        # ---- Application ID: generated ONLY here, on a NEW prediction.
+        # Stored in its own st.session_state slot (not inside result, and
+        # never regenerated by the PDF button) so repeated PDF downloads
+        # for the same prediction always carry the same ID.
+        st.session_state.application_id = generate_application_id()
+
+        # Persist everything needed to render the results (and to run the
+        # What-If Simulator / PDF report) across future reruns.
+        st.session_state.result = {
+            "prediction": int(prediction),
+            "eligibility_score": eligibility_score,
+            "score_is_probability": score_is_probability,
+            "applicant_name": applicant_name,
+            # Raw display values, snapshotted for the report
+            "gender": gender,
+            "married": married,
+            "dependents": dependents,
+            "education": education,
+            "self_employed": self_employed,
+            "property_area": property_area,
+            # Baseline numeric/encoded values (used as the "current" side
+            # of the What-If Simulator comparison, and in the report)
+            "applicant_income": applicant_income,
+            "coapplicant_income": coapplicant_income,
+            "loan_amount": loan_amount,
+            "loan_amount_term": loan_amount_term,
+            "credit_history": credit_history,
+        }
 
     st.session_state.history.append({
         "Application ID": st.session_state.application_id,
@@ -1015,13 +1085,84 @@ if predict_clicked:
         "Score": eligibility_score,
     })
 
+    if st.session_state.result is not None:
 
-# =========================
-# RESULTS (rendered from session_state so they persist across reruns
-# caused by the Simulate / Explain buttons below)
-# =========================
+        r = st.session_state.result
 
-if st.session_state.result is not None:
+        prediction = r["prediction"]
+        eligibility_score = r["eligibility_score"]
+        score_is_probability = r["score_is_probability"]
+
+        # Baseline values captured at prediction time
+        base_applicant_income = r["applicant_income"]
+        base_coapplicant_income = r["coapplicant_income"]
+        base_loan_amount = r["loan_amount"]
+        base_loan_amount_term = r["loan_amount_term"]
+        base_credit_history = r["credit_history"]
+
+
+        if eligibility_score >= 80:
+            score_label = "🟢 Excellent"
+            score_color = "#2ecc71"
+        elif eligibility_score >= 60:
+            score_label = "🟡 Good"
+            score_color = "#f1c40f"
+        elif eligibility_score >= 40:
+            score_label = "🟠 Moderate"
+            score_color = "#e67e22"
+        else:
+            score_label = "🔴 Low"
+            score_color = "#e74c3c"
+
+        score_title = "🎯 LOAN ELIGIBILITY SCORE" if score_is_probability else "🎯 MODEL-BASED ELIGIBILITY SCORE"
+
+        # Result
+        if prediction == 1:
+            st.success("✅ Loan Eligible")
+            st.write("Based on the provided information, the applicant is predicted to be eligible for the loan.")
+        else:
+            st.error("❌ Loan Not Eligible")
+            st.write("Based on the provided information, the applicant is predicted to be not eligible for the loan.")
+
+        # Score Card
+        st.markdown(f"""
+        <div class="auth-card" style="text-align:center; margin-top:1.2rem; border: 1px solid {score_color};">
+            <div style="font-weight:700; letter-spacing:1px; color:#B3DEF8; margin-bottom:0.6rem;">
+                {score_title}
+            </div>
+            <div style="font-size:2.4rem; font-weight:800; color:#ffffff;">
+                {eligibility_score}<span style="font-size:1.2rem; color:#58A1D3;"> / 100</span>
+            </div>
+            <div style="font-size:1.1rem; margin-top:0.4rem; color:{score_color}; font-weight:700;">
+                {score_label}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.progress(eligibility_score / 100)
+
+        if not score_is_probability:
+            st.caption("This model does not support probability output, so the score above is an estimated model-based indicator rather than a true prediction probability.")
+
+        st.markdown(
+            "<div style='color:#B3DEF8; font-size:0.9rem; margin-top:0.5rem;'>"
+            "This score represents the model's assessment based on the information provided. "
+            "It is not a guaranteed bank approval."
+            "</div>",
+            unsafe_allow_html=True
+        )
+
+        st.markdown("<div class='sidebar-caption' style='margin-top:0.8rem;'>Need the full PDF report, EMI breakdown, a What-If comparison, or the AI explanation? Use the sidebar to open <b>Loan Report</b>, <b>EMI Calculator</b>, <b>What-If Simulator</b> or <b>AI Loan Advisor</b>.</div>", unsafe_allow_html=True)
+
+    st.stop()
+
+if page == "📄 Loan Report":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Loan Report</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>Generate and download the official loan eligibility report</div>", unsafe_allow_html=True)
+
+    if st.session_state.result is None:
+        st.info("ℹ️ Please submit a **New Loan Application** first. The Loan Report becomes available once a prediction has been made.")
+        st.stop()
 
     r = st.session_state.result
 
@@ -1036,65 +1177,11 @@ if st.session_state.result is not None:
     base_loan_amount_term = r["loan_amount_term"]
     base_credit_history = r["credit_history"]
 
-    if eligibility_score >= 80:
-        score_label = "🟢 Excellent"
-        score_color = "#2ecc71"
-    elif eligibility_score >= 60:
-        score_label = "🟡 Good"
-        score_color = "#f1c40f"
-    elif eligibility_score >= 40:
-        score_label = "🟠 Moderate"
-        score_color = "#e67e22"
-    else:
-        score_label = "🔴 Low"
-        score_color = "#e74c3c"
-
-    score_title = "🎯 LOAN ELIGIBILITY SCORE" if score_is_probability else "🎯 MODEL-BASED ELIGIBILITY SCORE"
-
-    # Result
-    if prediction == 1:
-        st.success("✅ Loan Eligible")
-        st.write("Based on the provided information, the applicant is predicted to be eligible for the loan.")
-    else:
-        st.error("❌ Loan Not Eligible")
-        st.write("Based on the provided information, the applicant is predicted to be not eligible for the loan.")
-
-    # Score Card
-    st.markdown(f"""
-    <div class="auth-card" style="text-align:center; margin-top:1.2rem; border: 1px solid {score_color};">
-        <div style="font-weight:700; letter-spacing:1px; color:#B3DEF8; margin-bottom:0.6rem;">
-            {score_title}
-        </div>
-        <div style="font-size:2.4rem; font-weight:800; color:#ffffff;">
-            {eligibility_score}<span style="font-size:1.2rem; color:#58A1D3;"> / 100</span>
-        </div>
-        <div style="font-size:1.1rem; margin-top:0.4rem; color:{score_color}; font-weight:700;">
-            {score_label}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.progress(eligibility_score / 100)
-
-    if not score_is_probability:
-        st.caption("This model does not support probability output, so the score above is an estimated model-based indicator rather than a true prediction probability.")
-
-    st.markdown(
-        "<div style='color:#B3DEF8; font-size:0.9rem; margin-top:0.5rem;'>"
-        "This score represents the model's assessment based on the information provided. "
-        "It is not a guaranteed bank approval."
-        "</div>",
-        unsafe_allow_html=True
-    )
-
     # =========================
     # APPLICATION ID + PROFESSIONAL LOAN REPORT
     # =========================
 
     st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
-
-    if page == "📄 Loan Report":
-        st.info("📄 Generate and download your loan report below.")
 
     st.markdown(
         f"<div class='auth-card' style='text-align:center; padding:1rem;'>"
@@ -1139,13 +1226,36 @@ if st.session_state.result is not None:
             key="download_report_btn"
         )
 
+    st.stop()
+
+if page == "🤖 AI Loan Advisor":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> AI Loan Advisor</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>A plain-language, AI-generated explanation of your result</div>", unsafe_allow_html=True)
+
+    if st.session_state.result is None:
+        st.info("ℹ️ Please submit a **New Loan Application** first. The AI Loan Advisor becomes available once a prediction has been made.")
+        st.stop()
+
+    r = st.session_state.result
+
+    prediction = r["prediction"]
+    eligibility_score = r["eligibility_score"]
+    score_is_probability = r["score_is_probability"]
+
+    # Baseline values captured at prediction time
+    base_applicant_income = r["applicant_income"]
+    base_coapplicant_income = r["coapplicant_income"]
+    base_loan_amount = r["loan_amount"]
+    base_loan_amount_term = r["loan_amount_term"]
+    base_credit_history = r["credit_history"]
+
     # =========================
     # AI LOAN ADVISOR
     # =========================
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("🤖 AI Loan Advisor", expanded=(page == "🤖 AI Loan Advisor")):
+    with st.expander("🤖 AI Loan Advisor", expanded=False):
 
         st.markdown(
             "<div class='sidebar-caption'>Get a plain-language explanation of the ML model's result, "
@@ -1202,6 +1312,12 @@ if st.session_state.result is not None:
                         with st.expander("🔧 Debug details"):
                             st.code(f"{type(e).__name__}: {e}")
 
+    st.stop()
+
+if page == "💰 EMI Calculator":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> EMI Calculator</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>Estimate your monthly installment and affordability</div>", unsafe_allow_html=True)
+
     # =========================
     # EMI + AFFORDABILITY CALCULATOR
     # =========================
@@ -1209,7 +1325,7 @@ if st.session_state.result is not None:
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("💰 EMI + Affordability Calculator", expanded=(page == "💰 EMI Calculator")):
+    with st.expander("💰 EMI + Affordability Calculator", expanded=False):
 
         st.markdown(
             "<div class='sidebar-caption'>Estimate the monthly installment for this loan and check "
@@ -1350,13 +1466,45 @@ if st.session_state.result is not None:
                     unsafe_allow_html=True
                 )
 
+    st.stop()
+
+if page == "🔄 What-If Simulator":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> What-If Simulator</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>See how changes to the applicant's profile affect eligibility</div>", unsafe_allow_html=True)
+
+    if st.session_state.result is None:
+        st.info("ℹ️ Please submit a **New Loan Application** first. The What-If Simulator becomes available once a prediction has been made.")
+        st.stop()
+
+    r = st.session_state.result
+
+    prediction = r["prediction"]
+    eligibility_score = r["eligibility_score"]
+    score_is_probability = r["score_is_probability"]
+
+    # Baseline values captured at prediction time
+    base_applicant_income = r["applicant_income"]
+    base_coapplicant_income = r["coapplicant_income"]
+    base_loan_amount = r["loan_amount"]
+    base_loan_amount_term = r["loan_amount_term"]
+    base_credit_history = r["credit_history"]
+
+    # Re-derive the encoded fields from the saved application
+    # (the live form isn't shown on this page anymore).
+    gender_value = 0 if r["gender"] == "Female" else 1
+    married_value = 0 if r["married"] == "No" else 1
+    dependents_value = {"0": 0, "1": 1, "2": 2, "3+": 3}[r["dependents"]]
+    education_value = 0 if r["education"] == "Not graduate" else 1
+    self_employed_value = 0 if r["self_employed"] == "No" else 1
+    property_area_value = {"Rural": 0, "Semiurban": 1, "Urban": 2}[r["property_area"]]
+
     # =========================
     # WHAT-IF LOAN SIMULATOR
     # =========================
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("🔄 What-If Loan Simulator", expanded=(page == "🔄 What-If Simulator")):
+    with st.expander("🔄 What-If Loan Simulator", expanded=False):
 
         st.markdown(
             "<div class='sidebar-caption'>Adjust the values below to see how changes to the applicant's "
@@ -1487,8 +1635,17 @@ if st.session_state.result is not None:
                 unsafe_allow_html=True
             )
 
-else:
-    st.info("ℹ️ Please click **Predict Loan Eligibility** first. A Loan Report can only be generated after a prediction has been made.")
+    st.stop()
 
 
-
+if page == "📋 Application History":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Application History</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>All loan applications submitted this session</div>", unsafe_allow_html=True)
+    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+    if not st.session_state.history:
+        st.markdown("<div class='sidebar-caption'>No applications submitted yet in this session.</div>", unsafe_allow_html=True)
+    else:
+        history_df = pd.DataFrame(st.session_state.history)
+        st.dataframe(history_df, use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
