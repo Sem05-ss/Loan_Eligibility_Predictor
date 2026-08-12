@@ -74,6 +74,10 @@ if "result" not in st.session_state:
     st.session_state.result = None
 if "application_id" not in st.session_state:
     st.session_state.application_id = None
+if "page" not in st.session_state:
+    st.session_state.page = "🏠 Dashboard"
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 st.set_page_config(
     page_title="Loan Eligibility Predictor",
@@ -339,15 +343,128 @@ if not st.session_state.logged_in:
 # SIDEBAR - USER INFO / LOGOUT
 # =========================
 
+NAV_ITEMS = [
+    "🏠 Dashboard",
+    "📝 New Loan Application",
+    "💰 EMI Calculator",
+    "🔄 What-If Simulator",
+    "🤖 AI Loan Advisor",
+    "📄 Loan Report",
+    "📋 Application History",
+]
+
+# Sections that live inside the main workspace (form → results → tools).
+# Selecting any of these just routes the user into that workspace with the
+# matching tool auto-expanded — none of the existing ML/report logic below
+# is touched.
+WORKSPACE_PAGES = {
+    "📝 New Loan Application",
+    "💰 EMI Calculator",
+    "🔄 What-If Simulator",
+    "🤖 AI Loan Advisor",
+    "📄 Loan Report",
+}
+
 with st.sidebar:
-    st.markdown(f"<div class='sidebar-username'>👤 {st.session_state.username}</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sidebar-caption'>Welcome back!</div>", unsafe_allow_html=True)
-    st.markdown("---")
+    st.markdown("<div style='font-size:1.3rem; font-weight:800; color:#ffffff;'>🏦 LOAN PREDICTOR</div>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin:0.5rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
+
+    # ---- Profile ----
+    _last = st.session_state.result
+    _profile_name = _last["applicant_name"] if _last and _last.get("applicant_name") else st.session_state.username
+    _app_id = st.session_state.application_id or "—"
+    if _last is None:
+        _status = "⚪ Not Submitted"
+    elif _last["prediction"] == 1:
+        _status = "🟢 Eligible"
+    else:
+        _status = "🔴 Not Eligible"
+
+    st.markdown("<div style='font-weight:700; color:#B3DEF8;'>👤 Profile</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='sidebar-caption' style='margin:0.2rem 0 0.1rem 0;'>Applicant Name<br>"
+        f"<span class='sidebar-username'>{_profile_name or 'Guest'}</span></div>"
+        f"<div class='sidebar-caption' style='margin:0.5rem 0 0.1rem 0;'>Application ID<br>"
+        f"<span class='sidebar-username'>{_app_id}</span></div>"
+        f"<div class='sidebar-caption' style='margin:0.5rem 0 0.1rem 0;'>Current Loan Status<br>"
+        f"<span class='sidebar-username'>{_status}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<hr style='margin:0.8rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
+
+    # ---- Navigation ----
+    st.session_state.page = st.radio(
+        "Navigate",
+        NAV_ITEMS,
+        index=NAV_ITEMS.index(st.session_state.page) if st.session_state.page in NAV_ITEMS else 0,
+        key="nav_radio",
+        label_visibility="collapsed",
+    )
+    page = st.session_state.page
+
+    st.markdown("<hr style='margin:0.8rem 0; border-color:#58A1D3;'>", unsafe_allow_html=True)
+
+    # ---- Settings / Logout ----
+    with st.expander("⚙️ Settings", expanded=False):
+        st.markdown(f"<div class='sidebar-caption'>Logged in as <b>{st.session_state.username}</b></div>", unsafe_allow_html=True)
+        st.caption("Account, password and notification settings will appear here in a future update.")
+
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.session_state.result = None
+        st.session_state.application_id = None
+        st.session_state.page = "🏠 Dashboard"
         st.rerun()
+
+# =========================
+# DASHBOARD (self-contained overview page)
+# =========================
+
+if page == "🏠 Dashboard":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown(f"<div class='tagline'>Welcome back, {st.session_state.username} 👋</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+    if st.session_state.result is None:
+        st.markdown("<div class='sidebar-caption'>You haven't submitted a loan application yet.</div>", unsafe_allow_html=True)
+        if st.button("📝 Start New Loan Application"):
+            st.session_state.page = "📝 New Loan Application"
+            st.rerun()
+    else:
+        r = st.session_state.result
+        label = "✅ Loan Eligible" if r["prediction"] == 1 else "❌ Loan Not Eligible"
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Latest Status", label)
+        with col2:
+            st.metric("Eligibility Score", f"{r['eligibility_score']}/100")
+        with col3:
+            st.metric("Applications Made", len(st.session_state.history))
+        st.markdown(f"<div class='sidebar-caption' style='margin-top:0.6rem;'>Application ID: <b>{st.session_state.application_id}</b></div>", unsafe_allow_html=True)
+        if st.button("🔄 Start Another Application"):
+            st.session_state.page = "📝 New Loan Application"
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
+
+# =========================
+# APPLICATION HISTORY (self-contained page)
+# =========================
+
+if page == "📋 Application History":
+    st.markdown("<h1 style='text-align:center;'><span class='bank-icon'>🏦</span> Application History</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='tagline'>All loan applications submitted this session</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+    if not st.session_state.history:
+        st.markdown("<div class='sidebar-caption'>No applications submitted yet in this session.</div>", unsafe_allow_html=True)
+    else:
+        history_df = pd.DataFrame(st.session_state.history)
+        st.dataframe(history_df, use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
 
 
 # =========================
@@ -890,6 +1007,14 @@ if predict_clicked:
         "credit_history": credit_history,
     }
 
+    st.session_state.history.append({
+        "Application ID": st.session_state.application_id,
+        "Applicant Name": applicant_name or "—",
+        "Date": date.today().strftime("%d %b %Y"),
+        "Status": "✅ Eligible" if int(prediction) == 1 else "❌ Not Eligible",
+        "Score": eligibility_score,
+    })
+
 
 # =========================
 # RESULTS (rendered from session_state so they persist across reruns
@@ -968,6 +1093,9 @@ if st.session_state.result is not None:
 
     st.markdown("<div style='margin-top:1.2rem;'></div>", unsafe_allow_html=True)
 
+    if page == "📄 Loan Report":
+        st.info("📄 Generate and download your loan report below.")
+
     st.markdown(
         f"<div class='auth-card' style='text-align:center; padding:1rem;'>"
         f"<div style='font-weight:700; color:#B3DEF8;'>🆔 APPLICATION ID</div>"
@@ -1017,7 +1145,7 @@ if st.session_state.result is not None:
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("🤖 AI Loan Advisor", expanded=False):
+    with st.expander("🤖 AI Loan Advisor", expanded=(page == "🤖 AI Loan Advisor")):
 
         st.markdown(
             "<div class='sidebar-caption'>Get a plain-language explanation of the ML model's result, "
@@ -1081,7 +1209,7 @@ if st.session_state.result is not None:
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("💰 EMI + Affordability Calculator", expanded=False):
+    with st.expander("💰 EMI + Affordability Calculator", expanded=(page == "💰 EMI Calculator")):
 
         st.markdown(
             "<div class='sidebar-caption'>Estimate the monthly installment for this loan and check "
@@ -1228,7 +1356,7 @@ if st.session_state.result is not None:
 
     st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
 
-    with st.expander("🔄 What-If Loan Simulator", expanded=False):
+    with st.expander("🔄 What-If Loan Simulator", expanded=(page == "🔄 What-If Simulator")):
 
         st.markdown(
             "<div class='sidebar-caption'>Adjust the values below to see how changes to the applicant's "
